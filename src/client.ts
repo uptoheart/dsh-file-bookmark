@@ -105,24 +105,12 @@ function syncPanelVisibility(): void {
   if (!panelContainer) return
   if (panelOpen) {
     panelContainer.style.display = ''
-    const convColumn = centerColumn()
-    if (convColumn) {
-      for (const child of Array.from(convColumn.children)) {
-        if (child !== panelContainer) {
-          (child as HTMLElement).style.display = 'none'
-        }
-      }
-    }
+    panelContainer.style.position = 'absolute'
+    panelContainer.style.inset = '0'
   } else {
     panelContainer.style.display = 'none'
-    const convColumn = centerColumn()
-    if (convColumn) {
-      for (const child of Array.from(convColumn.children)) {
-        if (child !== panelContainer) {
-          (child as HTMLElement).style.display = ''
-        }
-      }
-    }
+    panelContainer.style.position = ''
+    panelContainer.style.inset = ''
   }
 }
 
