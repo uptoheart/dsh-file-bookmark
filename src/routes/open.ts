@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { readJsonBody, sendJson } from '../server-utils.js'
-import { findBookmark } from '../bookmarks.js'
+import { findBookmark, incrementOpenCount } from '../bookmarks.js'
 import { openInFileManager } from '../platform.js'
 
 export async function handleOpenBookmark(req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -15,5 +15,10 @@ export async function handleOpenBookmark(req: IncomingMessage, res: ServerRespon
     return
   }
   const result = await openInFileManager(entry.path)
+
+  if (result.success) {
+    incrementOpenCount(body.target)
+  }
+
   sendJson(res, 200, result)
 }

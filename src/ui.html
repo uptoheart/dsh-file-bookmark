@@ -171,6 +171,7 @@
     margin-top: 2px;
   }
   .no-alias { color: #5c5346; }
+  .open-count { color: var(--accent); font-weight: 600; font-size: .7rem; }
   .item .path {
     font-size: .66rem;
     color: var(--text-dim);
@@ -347,10 +348,11 @@ function toast(msg, ok = true) {
 function bookmarkItemHtml(b) {
   const name = b.path.split(/[/\\]/).pop() || b.path
   const alias = b.alias ? escapeHtml(b.alias) : '<span class="no-alias">无别名</span>'
+  const count = b.openCount ?? 0
   return `<div class="item" data-action="open" data-alias="${escapeHtml(b.alias)}" title="点击打开: ${escapeHtml(b.path)}">
     <div class="info">
       <div class="name"><span class="badge badge-${b.type}">${b.type}</span> ${escapeHtml(name)}</div>
-      <div class="alias">🏷 ${alias}</div>
+      <div class="alias">🏷 ${alias}　<span class="open-count">🔥${count}</span></div>
       <div class="path">${escapeHtml(b.path)}</div>
     </div>
     <div class="acts">

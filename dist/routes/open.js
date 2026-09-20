@@ -1,5 +1,5 @@
 import { readJsonBody, sendJson } from '../server-utils.js';
-import { findBookmark } from '../bookmarks.js';
+import { findBookmark, incrementOpenCount } from '../bookmarks.js';
 import { openInFileManager } from '../platform.js';
 export async function handleOpenBookmark(req, res) {
     const body = await readJsonBody(req);
@@ -13,5 +13,8 @@ export async function handleOpenBookmark(req, res) {
         return;
     }
     const result = await openInFileManager(entry.path);
+    if (result.success) {
+        incrementOpenCount(body.target);
+    }
     sendJson(res, 200, result);
 }

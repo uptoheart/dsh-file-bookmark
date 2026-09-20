@@ -8,6 +8,7 @@ export interface BookmarkEntry {
   path: string
   type: 'file' | 'folder'
   createdAt: string
+  openCount: number
 }
 
 export interface CreateProjectResult {
@@ -122,10 +123,11 @@ export async function refreshBookmarks(): Promise<void> {
 export function renderBookmarkItem(b: BookmarkEntry, showActions: boolean): string {
   const name = b.path.split(/[/\\]/).pop() ?? b.path
   const alias = b.alias ? escapeHtml(b.alias) : '<span class="bkm-no-alias">无别名</span>'
+  const count = b.openCount ?? 0
   return `<div class="bkm-item" data-action="open" data-alias="${escapeHtml(b.alias)}" title="点击打开: ${escapeHtml(b.path)}">
     <div class="bkm-item-info">
       <div class="bkm-item-name"><span class="bkm-badge bkm-badge-${b.type}">${b.type}</span> ${escapeHtml(name)}</div>
-      <div class="bkm-item-alias">🏷 ${alias}</div>
+      <div class="bkm-item-alias">🏷 ${alias}　<span class="bkm-open-count">🔥${count}</span></div>
       <div class="bkm-item-path">${escapeHtml(b.path)}</div>
     </div>
     ${showActions ? `<div class="bkm-item-acts">
@@ -146,6 +148,8 @@ export const STYLES = `
   overflow-y: auto;
   padding: 24px;
   z-index: 1;
+  display: flex;
+  flex-direction: column;
 }
 .bkm-panel::before {
   content: '';
@@ -165,6 +169,7 @@ export const STYLES = `
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 .bkm-panel h1::before {
   content: '';
@@ -177,7 +182,10 @@ export const STYLES = `
 .bkm-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  grid-auto-rows: 1fr;
   gap: 14px;
+  flex: 1;
+  min-height: 0;
 }
 .bkm-card {
   background: #1f1b17;
@@ -188,6 +196,7 @@ export const STYLES = `
   flex-direction: column;
   box-shadow: 0 1px 3px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.25);
   transition: border-color .2s;
+  min-height: 0;
 }
 .bkm-card:hover { border-color: #524838; }
 .bkm-card h2 {
@@ -197,11 +206,13 @@ export const STYLES = `
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 .bkm-card .bkm-sub {
   font-size: .75rem;
   color: #8a7e6b;
   margin-bottom: 12px;
+  flex-shrink: 0;
 }
 .bkm-fg { margin-bottom: 10px; }
 .bkm-fg label {
@@ -252,9 +263,9 @@ export const STYLES = `
 .bkm-btn-s { padding: 4px 9px; font-size: .72rem; }
 .bkm-list {
   flex: 1;
-  max-height: 240px;
   overflow-y: auto;
   margin-top: 10px;
+  min-height: 0;
 }
 .bkm-item {
   display: flex;
@@ -290,6 +301,7 @@ export const STYLES = `
   margin-top: 2px;
 }
 .bkm-no-alias { color: #5c5346; }
+.bkm-open-count { color: #f59e0b; font-weight: 600; font-size: .7rem; }
 .bkm-item-path {
   font-size: .66rem;
   color: #8a7e6b;
@@ -344,12 +356,13 @@ export const STYLES = `
 .bkm-path-row .bkm-btn { white-space: nowrap; flex-shrink: 0; }
 .bkm-hidden { display: none !important; }
 .bkm-project-results {
-  max-height: 200px;
+  flex: 1;
   overflow-y: auto;
   margin-top: 10px;
   font-size: .72rem;
   color: #8a7e6b;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
+  min-height: 0;
 }
 .bkm-project-results .bkm-detail-line {
   padding: 3px 0;

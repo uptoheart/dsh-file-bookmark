@@ -13,6 +13,16 @@ function ensureStorageDir() {
         mkdirSync(dir, { recursive: true });
     }
 }
+function normalizeEntry(entry) {
+    return {
+        id: entry.id ?? '',
+        alias: entry.alias ?? '',
+        path: entry.path ?? '',
+        type: entry.type === 'folder' ? 'folder' : 'file',
+        createdAt: entry.createdAt ?? new Date().toISOString(),
+        openCount: typeof entry.openCount === 'number' ? entry.openCount : 0,
+    };
+}
 export function loadBookmarks() {
     const filePath = getBookmarksFilePath();
     if (!existsSync(filePath)) {
@@ -22,7 +32,7 @@ export function loadBookmarks() {
         const raw = readFileSync(filePath, 'utf-8');
         const data = JSON.parse(raw);
         if (Array.isArray(data)) {
-            return data;
+            return data.map((d) => normalizeEntry(d));
         }
         return [];
     }
@@ -48,6 +58,7 @@ export function addBookmark(entry) {
         ...entry,
         id: `bm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
         createdAt: new Date().toISOString(),
+        openCount: 0,
     };
     bookmarks.push(newEntry);
     saveBookmarks(bookmarks);
@@ -66,6 +77,15 @@ export function findBookmark(aliasOrId) {
     const bookmarks = loadBookmarks();
     return bookmarks.find((b) => b.alias === aliasOrId || b.id === aliasOrId);
 }
+export function incrementOpenCount(aliasOrId) {
+    const bookmarks = loadBookmarks();
+    const entry = bookmarks.find((b) => b.alias === aliasOrId || b.id === aliasOrId);
+    if (!entry)
+        return undefined;
+    entry.openCount = (entry.openCount ?? 0) + 1;
+    saveBookmarks(bookmarks);
+    return entry;
+}
 export function listBookmarks() {
-    return loadBookmarks();
+    return loadBookmarks().sort((a, b) => (b.openCount ?? 0) - (a.openCount ?? 0));
 }

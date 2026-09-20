@@ -8,6 +8,7 @@ export interface BookmarkEntry {
   path: string
   type: 'file' | 'folder'
   createdAt: string
+  openCount: number
 }
 
 function getStorageDir(): string {
@@ -25,6 +26,17 @@ function ensureStorageDir(): void {
   }
 }
 
+function normalizeEntry(entry: Partial<BookmarkEntry>): BookmarkEntry {
+  return {
+    id: entry.id ?? '',
+    alias: entry.alias ?? '',
+    path: entry.path ?? '',
+    type: entry.type === 'folder' ? 'folder' : 'file',
+    createdAt: entry.createdAt ?? new Date().toISOString(),
+    openCount: typeof entry.openCount === 'number' ? entry.openCount : 0,
+  }
+}
+
 export function loadBookmarks(): BookmarkEntry[] {
   const filePath = getBookmarksFilePath()
   if (!existsSync(filePath)) {
@@ -34,7 +46,7 @@ export function loadBookmarks(): BookmarkEntry[] {
     const raw = readFileSync(filePath, 'utf-8')
     const data = JSON.parse(raw)
     if (Array.isArray(data)) {
-      return data as BookmarkEntry[]
+      return data.map((d: Partial<BookmarkEntry>) => normalizeEntry(d))
     }
     return []
   } catch {
@@ -48,7 +60,7 @@ export function saveBookmarks(bookmarks: BookmarkEntry[]): void {
   writeFileSync(filePath, JSON.stringify(bookmarks, null, 2), 'utf-8')
 }
 
-export function addBookmark(entry: Omit<BookmarkEntry, 'id' | 'createdAt'>): BookmarkEntry {
+export function addBookmark(entry: Omit<BookmarkEntry, 'id' | 'createdAt' | 'openCount'>): BookmarkEntry {
   const bookmarks = loadBookmarks()
   const existing = bookmarks.find((b) => b.alias === entry.alias)
   if (existing) {
@@ -61,6 +73,7 @@ export function addBookmark(entry: Omit<BookmarkEntry, 'id' | 'createdAt'>): Boo
     ...entry,
     id: `bm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     createdAt: new Date().toISOString(),
+    openCount: 0,
   }
   bookmarks.push(newEntry)
   saveBookmarks(bookmarks)
@@ -81,6 +94,15 @@ export function findBookmark(aliasOrId: string): BookmarkEntry | undefined {
   return bookmarks.find((b) => b.alias === aliasOrId || b.id === aliasOrId)
 }
 
+export function incrementOpenCount(aliasOrId: string): BookmarkEntry | undefined {
+  const bookmarks = loadBookmarks()
+  const entry = bookmarks.find((b) => b.alias === aliasOrId || b.id === aliasOrId)
+  if (!entry) return undefined
+  entry.openCount = (entry.openCount ?? 0) + 1
+  saveBookmarks(bookmarks)
+  return entry
+}
+
 export function listBookmarks(): BookmarkEntry[] {
-  return loadBookmarks()
+  return loadBookmarks().sort((a, b) => (b.openCount ?? 0) - (a.openCount ?? 0))
 }

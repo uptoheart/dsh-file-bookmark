@@ -1,6 +1,6 @@
 import { defineTool } from '@deepseek-ai/dsh-tools';
 import { existsSync } from 'node:fs';
-import { findBookmark, listBookmarks } from '../bookmarks.js';
+import { findBookmark, listBookmarks, incrementOpenCount } from '../bookmarks.js';
 import { openInFileManager } from '../platform.js';
 export const bookmarkOpenTool = defineTool({
     name: 'bookmark-open',
@@ -41,6 +41,9 @@ export const bookmarkOpenTool = defineTool({
             };
         }
         const result = await openInFileManager(entry.path);
+        if (result.success) {
+            incrementOpenCount(args.target);
+        }
         return {
             success: result.success,
             path: entry.path,
