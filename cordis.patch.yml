@@ -1,0 +1,10 @@
+# dsh-file-bookmark bundle layer.
+#
+# The plugin provides:
+#   1. Host-side tools: bookmark-add, bookmark-open, fs-create-item
+#   2. Client-side UI: sidebar entry + center panel (web profile only)
+#
+# `dsh.client.platform: "web"` in package.json activates the browser half.
+- insert:
+    - id: dsh-file-bookmark
+      name: dsh-file-bookmark
