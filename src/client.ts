@@ -35,9 +35,41 @@ function newSessionButton(root: HTMLElement): HTMLButtonElement | undefined {
 
 // ── Panel mount core ──────────────────────────────────────────────────────────
 const CENTER_COL_SELECTOR = '[data-pane="conversation"], [class*="centerCol"]'
+const CONVERSATION_CONTENT_SELECTOR = '[class*="conversation"], [class*="chatView"], [class*="messageList"], [data-pane="conversation"] > div:first-child'
 
 function centerColumn(): HTMLElement | undefined {
   return document.querySelector<HTMLElement>(CENTER_COL_SELECTOR) ?? undefined
+}
+
+function conversationContent(): HTMLElement | undefined {
+  const col = centerColumn()
+  if (!col) return undefined
+  const direct = col.querySelector<HTMLElement>(CONVERSATION_CONTENT_SELECTOR)
+  if (direct && direct !== col) return direct
+  for (const child of Array.from(col.children)) {
+    const el = child as HTMLElement
+    if (el.dataset?.['dshBookmarkView']) continue
+    return el
+  }
+  return col.firstElementChild as HTMLElement | undefined
+}
+
+let originalDisplay = ''
+let originalPosition = ''
+
+function hideConversation(): void {
+  const content = conversationContent()
+  if (!content) return
+  originalDisplay = content.style.display || 'block'
+  originalPosition = content.style.position || ''
+  content.style.display = 'none'
+}
+
+function showConversation(): void {
+  const content = conversationContent()
+  if (!content) return
+  content.style.display = originalDisplay || ''
+  content.style.position = originalPosition || ''
 }
 
 // ── Panel UI assembly ─────────────────────────────────────────────────────────
@@ -66,6 +98,7 @@ function closePanel(): void {
   panelOpen = false
   document.documentElement.removeAttribute('data-dsh-ssh-active')
   document.documentElement.removeAttribute('data-dsh-taskboard-active')
+  showConversation()
   document.dispatchEvent(new CustomEvent('dsh-panel-activate', { detail: '' }))
 }
 
@@ -75,6 +108,7 @@ function openPanel(): void {
   panelOpen = true
   document.documentElement.removeAttribute('data-dsh-ssh-active')
   document.documentElement.removeAttribute('data-dsh-taskboard-active')
+  hideConversation()
   document.dispatchEvent(new CustomEvent('dsh-panel-activate', { detail: 'bookmark' }))
 }
 
@@ -103,15 +137,7 @@ function wirePanelEvents(root: HTMLElement): void {
 
 function syncPanelVisibility(): void {
   if (!panelContainer) return
-  if (panelOpen) {
-    panelContainer.style.display = ''
-    panelContainer.style.position = 'absolute'
-    panelContainer.style.inset = '0'
-  } else {
-    panelContainer.style.display = 'none'
-    panelContainer.style.position = ''
-    panelContainer.style.inset = ''
-  }
+  panelContainer.style.display = panelOpen ? '' : 'none'
 }
 
 // ── Sidebar entry ─────────────────────────────────────────────────────────────
