@@ -6,6 +6,39 @@
 <title>dsh-file-bookmark</title>
 <style>
   :root {
+    color-scheme: light dark;
+    --bg: #ffffff;
+    --surface: #f6f8fa;
+    --card: #ffffff;
+    --border: #d0d7de;
+    --border-h: #0969da;
+    --text: #1f2328;
+    --text-dim: #656d76;
+    --accent: #f59e0b;
+    --accent-h: #d97706;
+    --green: #1a7f37;
+    --red: #cf222e;
+    --radius: 8px;
+    --gap: 14px;
+    --shadow: 0 1px 3px rgba(0,0,0,.08), 0 4px 12px rgba(0,0,0,.04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14110f;
+      --surface: #1f1b17;
+      --card: #1f1b17;
+      --border: #3a332a;
+      --border-h: #524838;
+      --text: #e8dcc8;
+      --text-dim: #8a7e6b;
+      --accent: #f59e0b;
+      --accent-h: #fbbf24;
+      --green: #84cc16;
+      --red: #f87171;
+      --shadow: 0 1px 3px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.25);
+    }
+  }
+  html[data-theme="dark"] {
     --bg: #14110f;
     --surface: #1f1b17;
     --card: #1f1b17;
@@ -17,18 +50,33 @@
     --accent-h: #fbbf24;
     --green: #84cc16;
     --red: #f87171;
-    --radius: 8px;
-    --gap: 14px;
     --shadow: 0 1px 3px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.25);
   }
+  html[data-theme="light"] {
+    --bg: #ffffff;
+    --surface: #f6f8fa;
+    --card: #ffffff;
+    --border: #d0d7de;
+    --border-h: #0969da;
+    --text: #1f2328;
+    --text-dim: #656d76;
+    --accent: #d97706;
+    --accent-h: #b45309;
+    --green: #1a7f37;
+    --red: #cf222e;
+    --shadow: 0 1px 3px rgba(0,0,0,.08), 0 4px 12px rgba(0,0,0,.04);
+  }
   * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height: 100%; }
   body {
-    font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
     background: var(--bg);
     color: var(--text);
-    min-height: 100vh;
-    padding: 24px;
-    position: relative;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
   }
   body::before {
     content: '';
@@ -36,62 +84,70 @@
     inset: 0;
     pointer-events: none;
     background-image:
-      radial-gradient(circle at 20% 0%, rgba(245,158,11,.06), transparent 40%),
-      radial-gradient(circle at 80% 100%, rgba(132,204,22,.04), transparent 45%);
+      radial-gradient(circle at 20% 0%, rgba(245,158,11,.04), transparent 40%),
+      radial-gradient(circle at 80% 100%, rgba(132,204,22,.03), transparent 45%);
     z-index: 0;
   }
   body > * { position: relative; z-index: 1; }
   h1 {
-    font-size: 1.35rem;
+    font-size: 1.2rem;
     font-weight: 600;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
     color: var(--accent);
     letter-spacing: -0.01em;
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-shrink: 0;
   }
   h1::before {
     content: '';
     display: inline-block;
-    width: 6px;
-    height: 22px;
+    width: 5px;
+    height: 20px;
     background: var(--accent);
     border-radius: 2px;
   }
   .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    grid-template-columns: 1fr 2fr;
     gap: var(--gap);
+    flex: 1;
+    min-height: 0;
   }
   .card {
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 16px;
+    padding: 14px;
     display: flex;
     flex-direction: column;
     box-shadow: var(--shadow);
     transition: border-color .2s;
+    overflow: hidden;
+    min-height: 0;
+    min-width: 0;
   }
   .card:hover { border-color: var(--border-h); }
   .card h2 {
-    font-size: 1rem;
+    font-size: .95rem;
     font-weight: 600;
     margin-bottom: 2px;
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-shrink: 0;
   }
   .card .subtitle {
-    font-size: .75rem;
+    font-size: .72rem;
     color: var(--text-dim);
     margin-bottom: 12px;
+    flex-shrink: 0;
   }
-  .fg { margin-bottom: 10px; }
+  .fg { margin-bottom: 10px; min-width: 0; }
   .fg label {
     display: block;
-    font-size: .75rem;
+    font-size: .72rem;
     color: var(--text-dim);
     margin-bottom: 4px;
     font-weight: 500;
@@ -103,24 +159,24 @@
     border-radius: 5px;
     background: var(--bg);
     color: var(--text);
-    font-size: .82rem;
+    font-size: .8rem;
     font-family: inherit;
     outline: none;
     transition: border-color .15s, box-shadow .15s;
   }
   .fg input:focus, .fg select:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 2px rgba(245,158,11,.2);
+    box-shadow: 0 0 0 2px rgba(245,158,11,.15);
   }
-  .row { display: flex; gap: 8px; }
-  .row > * { flex: 1; }
+  .row { display: flex; gap: 14px; min-width: 0; }
+  .row > * { flex: 1; min-width: 0; }
   .btn {
     padding: 7px 14px;
     border: 1px solid var(--accent);
     border-radius: 5px;
     background: transparent;
     color: var(--accent);
-    font-size: .8rem;
+    font-size: .78rem;
     cursor: pointer;
     font-weight: 500;
     font-family: inherit;
@@ -134,10 +190,52 @@
   .btn-danger { border-color: var(--red); color: var(--red); }
   .btn-danger:hover { background: var(--red); color: var(--bg); }
   .btn-s { padding: 4px 9px; font-size: .72rem; }
+  .add-form {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    min-width: 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 10px;
+  }
+  .sort-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    min-width: 0;
+    padding-bottom: 8px;
+  }
+  .sort-bar span {
+    font-size: .7rem;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+  .sort-bar button {
+    padding: 2px 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: .68rem;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all .15s;
+  }
+  .sort-bar button:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .sort-bar button.active {
+    background: var(--accent);
+    color: var(--bg);
+    border-color: var(--accent);
+  }
   .list {
     flex: 1;
     overflow-y: auto;
-    max-height: 280px;
+    min-width: 0;
     margin-top: 10px;
   }
   .item {
@@ -155,7 +253,7 @@
   .item:hover { border-color: var(--accent); background: rgba(245,158,11,.06); }
   .item .info { flex: 1; min-width: 0; }
   .item .name {
-    font-size: .82rem;
+    font-size: .8rem;
     font-weight: 500;
     white-space: nowrap;
     overflow: hidden;
@@ -165,15 +263,15 @@
     gap: 6px;
   }
   .item .alias {
-    font-size: .7rem;
+    font-size: .68rem;
     color: var(--accent);
     font-family: 'JetBrains Mono', ui-monospace, monospace;
     margin-top: 2px;
   }
-  .no-alias { color: #5c5346; }
-  .open-count { color: var(--accent); font-weight: 600; font-size: .7rem; }
+  .no-alias { color: var(--text-dim); }
+  .open-count { color: var(--accent); font-weight: 600; font-size: .68rem; }
   .item .path {
-    font-size: .66rem;
+    font-size: .64rem;
     color: var(--text-dim);
     white-space: nowrap;
     overflow: hidden;
@@ -186,7 +284,7 @@
     display: inline-block;
     padding: 1px 6px;
     border-radius: 3px;
-    font-size: .6rem;
+    font-size: .58rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: .03em;
@@ -197,7 +295,7 @@
     text-align: center;
     color: var(--text-dim);
     padding: 20px;
-    font-size: .8rem;
+    font-size: .78rem;
     border: 1px dashed var(--border);
     border-radius: 6px;
   }
@@ -211,11 +309,11 @@
     font-weight: 500;
     z-index: 9999;
     animation: slideIn .3s ease;
-    box-shadow: 0 4px 16px rgba(0,0,0,.5);
+    box-shadow: 0 4px 16px rgba(0,0,0,.15);
     max-width: 320px;
   }
-  .toast-ok { background: #1a2e0a; color: var(--green); border: 1px solid var(--green); }
-  .toast-err { background: #2e1414; color: var(--red); border: 1px solid var(--red); }
+  .toast-ok { background: var(--bg); color: var(--green); border: 1px solid var(--green); }
+  .toast-err { background: var(--bg); color: var(--red); border: 1px solid var(--red); }
   @keyframes slideIn {
     from { transform: translateX(120%); opacity: 0; }
     to { transform: translateX(0); opacity: 1; }
@@ -235,6 +333,9 @@
   }
   .results .line { padding: 3px 0; border-bottom: 1px solid var(--border); }
   .results .line:last-child { border-bottom: none; }
+  @media (max-width: 900px) {
+    .grid { grid-template-columns: 1fr; }
+  }
 </style>
 </head>
 <body>
@@ -247,38 +348,45 @@
   <div class="card" id="card-add">
     <h2>🔖 添加收藏</h2>
     <p class="subtitle">收藏常用的文件或文件夹，通过别名快速访问</p>
-    <div class="fg">
-      <label for="add-path">文件 / 文件夹路径</label>
-      <input type="text" id="add-path" placeholder="C:\Users\me\project 或 /home/me/project">
-    </div>
-    <div class="row">
+    <div class="add-form">
       <div class="fg">
-        <label for="add-alias">别名（可选）</label>
-        <input type="text" id="add-alias" placeholder="我的项目">
+        <label for="add-path">文件 / 文件夹路径</label>
+        <input type="text" id="add-path" placeholder="C:\Users\me\project 或 /home/me/project">
       </div>
-      <div class="fg">
-        <label for="add-type">类型</label>
-        <select id="add-type">
-          <option value="file">文件</option>
-          <option value="folder">文件夹</option>
-        </select>
+      <div class="row">
+        <div class="fg">
+          <label for="add-alias">别名（可选）</label>
+          <input type="text" id="add-alias" placeholder="我的项目">
+        </div>
+        <div class="fg">
+          <label for="add-type">类型</label>
+          <select id="add-type">
+            <option value="file">文件</option>
+            <option value="folder">文件夹</option>
+          </select>
+        </div>
       </div>
+      <button class="btn btn-primary" id="add-btn">➕ 添加收藏</button>
     </div>
-    <button class="btn btn-primary" id="add-btn">➕ 添加收藏</button>
-    <div class="list mt10" id="bookmark-list"></div>
+    <div class="sort-bar" id="sort-bar">
+      <span>排序：</span>
+      <button data-sort="openCount" class="active">🔥次数</button>
+      <button data-sort="name">📛名称</button>
+      <button data-sort="time">🕐时间</button>
+    </div>
+    <div class="list" id="bookmark-list"></div>
   </div>
 
-  <!-- 卡片 2：打开收藏 -->
-  <div class="card" id="card-open">
-    <h2>🚀 打开收藏</h2>
-    <p class="subtitle">点击任一收藏项，在文件管理器中打开</p>
-    <div class="list" id="open-list"></div>
-  </div>
-
-  <!-- 卡片 3：创建项目 -->
+  <!-- 创建项目 -->
   <div class="card" id="card-project">
     <h2>🚀 创建项目</h2>
     <p class="subtitle">选择项目类型，一键创建标准工程结构</p>
+    <div class="fg">
+      <label for="workspace-select">选择工作区（可选）</label>
+      <select id="workspace-select">
+        <option value="">-- 不选择工作区 --</option>
+      </select>
+    </div>
     <div class="fg">
       <label for="project-base">目标目录</label>
       <div class="path-row">
@@ -293,7 +401,7 @@
     <div class="fg">
       <label for="project-type">项目类型</label>
       <select id="project-type">
-        <optgroup label="基础"><option value="empty">空白文件夹</option></optgroup>
+        <optgroup label="基础"><option value="empty">工作区</option></optgroup>
         <optgroup label="项目管理"><option value="project-management">项目管理工程</option></optgroup>
         <optgroup label="代码类工程">
           <option value="code-java">Java 工程</option>
@@ -320,36 +428,54 @@
 </div>
 
 <script>
-const API = '/api'
-
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, c => {
-    switch (c) {
-      case '&': return '&amp;'
-      case '<': return '&lt;'
-      case '>': return '&gt;'
-      case '"': return '&quot;'
-      case "'": return '&#39;'
-      default: return c
+(function() {
+  try {
+    if (window.parent && window.parent !== window) {
+      var parentDoc = window.parent.document;
+      var parentEl = parentDoc.documentElement;
+      var parentTheme = parentEl.getAttribute('data-theme') || parentEl.getAttribute('data-color-mode');
+      if (parentTheme === 'dark' || parentTheme === 'light') {
+        document.documentElement.setAttribute('data-theme', parentTheme);
+      } else {
+        var bg = getComputedStyle(parentEl).backgroundColor;
+        if (bg) {
+          var m = bg.match(/rgba?\((\d+)/);
+          if (m && parseInt(m[1]) < 128) document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      }
     }
-  })
-}
+  } catch(e) {}
 
-function toast(msg, ok = true) {
-  const el = document.createElement('div')
-  el.className = 'toast ' + (ok ? 'toast-ok' : 'toast-err')
-  el.setAttribute('role', ok ? 'status' : 'alert')
-  el.setAttribute('aria-live', 'polite')
-  el.textContent = msg
-  document.body.appendChild(el)
-  setTimeout(() => el.remove(), 2800)
-}
+  const API = '/api'
 
-function bookmarkItemHtml(b) {
-  const name = b.path.split(/[/\\]/).pop() || b.path
-  const alias = b.alias ? escapeHtml(b.alias) : '<span class="no-alias">无别名</span>'
-  const count = b.openCount ?? 0
-  return `<div class="item" data-action="open" data-alias="${escapeHtml(b.alias)}" title="点击打开: ${escapeHtml(b.path)}">
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => {
+      switch (c) {
+        case '&': return '&amp;'
+        case '<': return '&lt;'
+        case '>': return '&gt;'
+        case '"': return '&quot;'
+        case "'": return '&#39;'
+        default: return c
+      }
+    })
+  }
+
+  function toast(msg, ok = true) {
+    const el = document.createElement('div')
+    el.className = 'toast ' + (ok ? 'toast-ok' : 'toast-err')
+    el.setAttribute('role', ok ? 'status' : 'alert')
+    el.setAttribute('aria-live', 'polite')
+    el.textContent = msg
+    document.body.appendChild(el)
+    setTimeout(() => el.remove(), 2800)
+  }
+
+  function bookmarkItemHtml(b) {
+    const name = b.path.split(/[/\\]/).pop() || b.path
+    const alias = b.alias ? escapeHtml(b.alias) : '<span class="no-alias">无别名</span>'
+    const count = b.openCount ?? 0
+    return `<div class="item" data-action="open" data-alias="${escapeHtml(b.alias)}" title="点击打开: ${escapeHtml(b.path)}">
     <div class="info">
       <div class="name"><span class="badge badge-${b.type}">${b.type}</span> ${escapeHtml(name)}</div>
       <div class="alias">🏷 ${alias}　<span class="open-count">🔥${count}</span></div>
@@ -360,183 +486,225 @@ function bookmarkItemHtml(b) {
       <button class="btn btn-s btn-danger" data-action="remove" data-alias="${escapeHtml(b.alias)}" aria-label="删除书签">✕</button>
     </div>
   </div>`
-}
-
-function renderBookmarkList(bookmarks) {
-  const container = document.getElementById('bookmark-list')
-  if (!bookmarks || bookmarks.length === 0) {
-    container.innerHTML = '<div class="empty">还没有收藏项，在上方添加第一个</div>'
-    return
   }
-  container.innerHTML = bookmarks.map(bookmarkItemHtml).join('')
-}
 
-function renderOpenList(bookmarks) {
-  const container = document.getElementById('open-list')
-  if (!bookmarks || bookmarks.length === 0) {
-    container.innerHTML = '<div class="empty">还没有收藏项，去"添加收藏"卡片添加</div>'
-    return
-  }
-  container.innerHTML = bookmarks.map(bookmarkItemHtml).join('')
-}
-
-// ── API helpers ──
-async function apiGet(path) {
-  const res = await fetch(API + path)
-  if (!res.ok) throw new Error('HTTP ' + res.status)
-  return res.json()
-}
-async function apiPost(path, body) {
-  const res = await fetch(API + path, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-  if (!res.ok) throw new Error('HTTP ' + res.status)
-  return res.json()
-}
-async function apiDelete(path) {
-  const res = await fetch(API + path, { method: 'DELETE' })
-  if (!res.ok) throw new Error('HTTP ' + res.status)
-  return res.json()
-}
-
-async function refreshAll() {
-  try {
-    const data = await apiGet('/bookmarks')
-    renderBookmarkList(data)
-    renderOpenList(data)
-  } catch (e) {
-    console.error('刷新书签列表失败:', e)
-  }
-}
-
-// ── 卡片 1：添加收藏 ──
-document.getElementById('add-btn').addEventListener('click', async () => {
-  const path = document.getElementById('add-path').value.trim()
-  const alias = document.getElementById('add-alias').value.trim()
-  const type = document.getElementById('add-type').value
-  if (!path) { toast('请输入路径', false); return }
-
-  const btn = document.getElementById('add-btn')
-  btn.disabled = true
-  btn.textContent = '⏳ 添加中...'
-  try {
-    const data = await apiPost('/bookmarks', { path, alias: alias || undefined, type })
-    if (data.success) {
-      toast(data.message)
-      document.getElementById('add-path').value = ''
-      document.getElementById('add-alias').value = ''
-    } else {
-      toast(data.message, false)
+  function renderBookmarkList(bookmarks) {
+    const container = document.getElementById('bookmark-list')
+    if (!bookmarks || bookmarks.length === 0) {
+      container.innerHTML = '<div class="empty">还没有收藏项，在上方添加第一个</div>'
+      return
     }
-    await refreshAll()
-  } catch (e) {
-    toast('请求失败: ' + e.message, false)
-  } finally {
-    btn.disabled = false
-    btn.textContent = '➕ 添加收藏'
+    const sorted = sortBookmarks(bookmarks)
+    container.innerHTML = sorted.map(bookmarkItemHtml).join('')
   }
-})
 
-// ── 卡片 2：打开收藏 (event delegation) ──
-async function openBookmark(alias) {
-  try {
-    const data = await apiPost('/open', { target: alias })
-    toast(data.message, data.success)
-  } catch (e) { toast('打开失败: ' + e.message, false) }
-}
+  let sortMode = 'openCount'
 
-async function removeBookmark(alias) {
-  try {
-    const data = await apiDelete('/bookmarks/' + encodeURIComponent(alias))
-    toast(data.message, data.success)
-    await refreshAll()
-  } catch (e) { toast('删除失败: ' + e.message, false) }
-}
-
-document.getElementById('bookmark-list').addEventListener('click', onListClick)
-document.getElementById('open-list').addEventListener('click', onListClick)
-
-function onListClick(e) {
-  const el = e.target.closest('[data-action]')
-  if (!el) return
-  const action = el.dataset.action
-  const alias = el.dataset.alias
-  if (!alias) return
-  e.stopPropagation()
-  if (action === 'open') openBookmark(alias)
-  else if (action === 'remove') removeBookmark(alias)
-}
-
-// ── 卡片 3：创建项目 ──
-document.getElementById('select-folder-btn').addEventListener('click', () => selectFolder('project-base'))
-document.getElementById('select-source-btn').addEventListener('click', () => selectFolder('source-path'))
-document.getElementById('project-type').addEventListener('change', () => {
-  const type = document.getElementById('project-type').value
-  document.getElementById('source-wrap').classList.toggle('hidden', type !== 'copy')
-})
-document.getElementById('create-project-btn').addEventListener('click', createProject)
-
-async function selectFolder(targetInputId) {
-  try {
-    const data = await apiGet('/select-folder')
-    if (data.success && data.path) {
-      document.getElementById(targetInputId).value = data.path
-      toast(data.message)
-    } else {
-      toast(data.message, false)
+  function sortBookmarks(list) {
+    const arr = [...list]
+    switch (sortMode) {
+      case 'time':
+        return arr.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      case 'name':
+        return arr.sort((a, b) => (a.path.split(/[/\\]/).pop() || '').localeCompare(b.path.split(/[/\\]/).pop() || ''))
+      case 'openCount':
+      default:
+        return arr.sort((a, b) => (b.openCount ?? 0) - (a.openCount ?? 0))
     }
-  } catch (e) { toast('选择文件夹失败: ' + e.message, false) }
-}
+  }
 
-async function createProject() {
-  const basePath = document.getElementById('project-base').value.trim()
-  const projectName = document.getElementById('project-name').value.trim()
-  const projectType = document.getElementById('project-type').value
-  const sourcePath = document.getElementById('source-path').value.trim()
-
-  if (!basePath) { toast('请选择或输入目标目录', false); return }
-  if (!projectName) { toast('请输入项目名称', false); return }
-  if (projectType === 'copy' && !sourcePath) { toast('请输入源工程路径', false); return }
-
-  const btn = document.getElementById('create-project-btn')
-  btn.disabled = true
-  btn.textContent = '⏳ 创建中...'
-
-  try {
-    const data = await apiPost('/create-project', {
-      basePath,
-      projectName,
-      projectType,
-      sourcePath: projectType === 'copy' ? sourcePath : undefined,
+  async function apiGet(path) {
+    const res = await fetch(API + path)
+    if (!res.ok) throw new Error('HTTP ' + res.status)
+    return res.json()
+  }
+  async function apiPost(path, body) {
+    const res = await fetch(API + path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
     })
-    toast(data.message, data.success)
-    renderProjectResults(data)
-  } catch (e) {
-    toast('创建项目失败: ' + e.message, false)
-  } finally {
-    btn.disabled = false
-    btn.textContent = '🚀 创建项目'
+    if (!res.ok) throw new Error('HTTP ' + res.status)
+    return res.json()
   }
-}
+  async function apiDelete(path) {
+    const res = await fetch(API + path, { method: 'DELETE' })
+    if (!res.ok) throw new Error('HTTP ' + res.status)
+    return res.json()
+  }
 
-function renderProjectResults(result) {
-  const container = document.getElementById('project-results')
-  if (!result.success) {
-    container.innerHTML = `<div class="item">
+  async function refreshAll() {
+    try {
+      const data = await apiGet('/bookmarks')
+      renderBookmarkList(data)
+    } catch (e) {
+      console.error('刷新书签列表失败:', e)
+    }
+  }
+
+  document.getElementById('sort-bar').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-sort]')
+    if (!btn) return
+    sortMode = btn.dataset.sort
+    document.querySelectorAll('#sort-bar button').forEach(b => b.classList.remove('active'))
+    btn.classList.add('active')
+    apiGet('/bookmarks').then(data => renderBookmarkList(data)).catch(() => {})
+  })
+
+  document.getElementById('add-btn').addEventListener('click', async () => {
+    const path = document.getElementById('add-path').value.trim()
+    const alias = document.getElementById('add-alias').value.trim()
+    const type = document.getElementById('add-type').value
+    if (!path) { toast('请输入路径', false); return }
+
+    const btn = document.getElementById('add-btn')
+    btn.disabled = true
+    btn.textContent = '⏳ 添加中...'
+    try {
+      const data = await apiPost('/bookmarks', { path, alias: alias || undefined, type })
+      if (data.success) {
+        toast(data.message)
+        document.getElementById('add-path').value = ''
+        document.getElementById('add-alias').value = ''
+      } else {
+        toast(data.message, false)
+      }
+      await refreshAll()
+    } catch (e) {
+      toast('请求失败: ' + e.message, false)
+    } finally {
+      btn.disabled = false
+      btn.textContent = '➕ 添加收藏'
+    }
+  })
+
+  async function openBookmark(alias) {
+    try {
+      const data = await apiPost('/open', { target: alias })
+      toast(data.message, data.success)
+    } catch (e) { toast('打开失败: ' + e.message, false) }
+  }
+
+  async function removeBookmark(alias) {
+    try {
+      const data = await apiDelete('/bookmarks/' + encodeURIComponent(alias))
+      toast(data.message, data.success)
+      await refreshAll()
+    } catch (e) { toast('删除失败: ' + e.message, false) }
+  }
+
+  document.getElementById('bookmark-list').addEventListener('click', onListClick)
+
+  function onListClick(e) {
+    const el = e.target.closest('[data-action]')
+    if (!el) return
+    const action = el.dataset.action
+    const alias = el.dataset.alias
+    if (!alias) return
+    e.stopPropagation()
+    if (action === 'open') openBookmark(alias)
+    else if (action === 'remove') removeBookmark(alias)
+  }
+
+  document.getElementById('select-folder-btn').addEventListener('click', () => selectFolder('project-base'))
+  document.getElementById('select-source-btn').addEventListener('click', () => selectFolder('source-path'))
+  document.getElementById('project-type').addEventListener('change', () => {
+    const type = document.getElementById('project-type').value
+    document.getElementById('source-wrap').classList.toggle('hidden', type !== 'copy')
+  })
+  document.getElementById('workspace-select').addEventListener('change', () => {
+    const workspaceEl = document.getElementById('workspace-select')
+    const baseEl = document.getElementById('project-base')
+    if (workspaceEl.value) {
+      baseEl.value = workspaceEl.value
+      baseEl.disabled = true
+    } else {
+      baseEl.disabled = false
+    }
+  })
+  document.getElementById('create-project-btn').addEventListener('click', createProject)
+
+  async function selectFolder(targetInputId) {
+    try {
+      const data = await apiGet('/select-folder')
+      if (data.success && data.path) {
+        document.getElementById(targetInputId).value = data.path
+        toast(data.message)
+        loadWorkspaces()
+      } else {
+        toast(data.message, false)
+      }
+    } catch (e) { toast('选择文件夹失败: ' + e.message, false) }
+  }
+
+  async function loadWorkspaces() {
+    try {
+      const basePath = document.getElementById('project-base').value.trim()
+      if (!basePath) return
+      
+      const data = await apiGet('/workspaces?path=' + encodeURIComponent(basePath))
+      if (data.success) {
+        const workspaceEl = document.getElementById('workspace-select')
+        const currentSelection = workspaceEl.value
+        
+        workspaceEl.innerHTML = '<option value="">-- 不选择工作区 --</option>' + 
+          data.workspaces.map(ws => 
+            `<option value="${ws.path}" ${ws.path === currentSelection ? 'selected' : ''}>${ws.name}</option>`
+          ).join('')
+      }
+    } catch {}
+  }
+
+  async function createProject() {
+    const workspaceEl = document.getElementById('workspace-select')
+    const basePath = document.getElementById('project-base').value.trim()
+    const projectName = document.getElementById('project-name').value.trim()
+    const projectType = document.getElementById('project-type').value
+    const sourcePath = document.getElementById('source-path').value.trim()
+    const workspacePath = workspaceEl.value.trim() || undefined
+
+    if (!basePath && !workspacePath) { toast('请选择或输入目标目录', false); return }
+    if (!projectName) { toast('请输入项目名称', false); return }
+    if (projectType === 'copy' && !sourcePath) { toast('请输入源工程路径', false); return }
+
+    const btn = document.getElementById('create-project-btn')
+    btn.disabled = true
+    btn.textContent = '⏳ 创建中...'
+
+    try {
+      const data = await apiPost('/create-project', {
+        basePath,
+        projectName,
+        projectType,
+        sourcePath: projectType === 'copy' ? sourcePath : undefined,
+        workspacePath,
+      })
+      toast(data.message, data.success)
+      renderProjectResults(data)
+    } catch (e) {
+      toast('创建项目失败: ' + e.message, false)
+    } finally {
+      btn.disabled = false
+      btn.textContent = '🚀 创建项目'
+    }
+  }
+
+  function renderProjectResults(result) {
+    const container = document.getElementById('project-results')
+    if (!result.success) {
+      container.innerHTML = `<div class="item">
       <div class="info">
         <div class="name">❌ 创建失败</div>
         <div class="path">${escapeHtml(result.message)}</div>
       </div>
     </div>`
-    return
-  }
-  const detailsHtml = (result.details || []).map(d =>
-    `<div class="line">${escapeHtml(d)}</div>`
-  ).join('')
-  const name = result.projectPath.split(/[/\\]/).pop() || result.projectPath
-  container.innerHTML = `<div class="item">
+      return
+    }
+    const detailsHtml = (result.details || []).map(d =>
+      `<div class="line">${escapeHtml(d)}</div>`
+    ).join('')
+    const name = result.projectPath.split(/[/\\]/).pop() || result.projectPath
+    container.innerHTML = `<div class="item">
       <div class="info">
         <div class="name">✅ ${escapeHtml(name)}</div>
         <div class="path">${escapeHtml(result.projectPath)}</div>
@@ -544,10 +712,10 @@ function renderProjectResults(result) {
       <span class="badge badge-folder">project</span>
     </div>
     <div class="results">${detailsHtml}</div>`
-}
+  }
 
-// initial load
-refreshAll()
+  refreshAll()
+})();
 </script>
 </body>
 </html>

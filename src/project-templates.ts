@@ -18,7 +18,7 @@ export type ProjectType =
   | 'copy'
 
 export const PROJECT_TYPES: Array<{ value: ProjectType; label: string; group: string }> = [
-  { value: 'empty', label: '空白文件夹', group: '基础' },
+  { value: 'empty', label: '工作区', group: '基础' },
   { value: 'project-management', label: '项目管理工程', group: '项目管理' },
   { value: 'code-java', label: 'Java 工程', group: '代码类工程' },
   { value: 'code-python', label: 'Python 工程', group: '代码类工程' },
@@ -29,11 +29,19 @@ export const PROJECT_TYPES: Array<{ value: ProjectType; label: string; group: st
   { value: 'copy', label: '复制类工程', group: '复制类工程' },
 ]
 
+export interface WorkspaceInfo {
+  path: string
+  name: string
+  createdAt: string
+  projects: string[]
+}
+
 export interface CreateProjectOptions {
   basePath: string
   projectName: string
   projectType: ProjectType
   sourcePath?: string
+  workspacePath?: string
 }
 
 export interface CreateProjectResult {
@@ -443,14 +451,25 @@ export function apply(_ctx: Context) {
   }
 }
 
-function createEmptyProject(basePath: string, projectName: string): CreateProjectResult {
-  const projectPath = join(resolve(basePath), projectName)
+function createEmptyProject(basePath: string, projectName: string, workspacePath?: string): CreateProjectResult {
+  const resolvedBase = workspacePath ? resolve(workspacePath) : resolve(basePath)
+  const projectPath = join(resolvedBase, projectName)
   ensureDir(projectPath)
+  
+  const details: string[] = [`已创建目录: ${projectPath}`]
+  let message = workspacePath 
+    ? `工作区项目创建成功: ${projectPath}`
+    : `工作区创建成功: ${projectPath}`
+  
+  if (workspacePath) {
+    details.push(`工作区路径: ${workspacePath}`)
+  }
+  
   return {
     success: true,
     projectPath,
-    message: `空白文件夹创建成功: ${projectPath}`,
-    details: [`已创建目录: ${projectPath}`],
+    message,
+    details,
   }
 }
 
@@ -527,7 +546,7 @@ function createCopyProject(
 }
 
 export async function createProject(options: CreateProjectOptions): Promise<CreateProjectResult> {
-  const { basePath, projectName, projectType, sourcePath } = options
+  const { basePath, projectName, projectType, sourcePath, workspacePath } = options
 
   if (!projectName.trim()) {
     return {
@@ -538,18 +557,18 @@ export async function createProject(options: CreateProjectOptions): Promise<Crea
     }
   }
 
-  if (!basePath.trim()) {
+  if (!basePath.trim() && !workspacePath?.trim()) {
     return {
       success: false,
       projectPath: '',
-      message: '目标目录不能为空',
+      message: '目标目录或工作区路径不能为空',
       details: [],
     }
   }
 
   switch (projectType) {
     case 'empty':
-      return createEmptyProject(basePath, projectName)
+      return createEmptyProject(basePath, projectName, workspacePath)
     case 'project-management':
       return createProjectManagement(basePath, projectName)
     case 'code-java':
@@ -581,5 +600,63 @@ export async function createProject(options: CreateProjectOptions): Promise<Crea
         message: `未知的项目类型: ${projectType}`,
         details: [],
       }
+  }
+}
+
+export function detectWorkspaces(basePath: string): WorkspaceInfo[] {
+  const resolvedBase = resolve(basePath)
+  const workspaces: WorkspaceInfo[] = []
+  
+  if (!existsSync(resolvedBase)) {
+    return workspaces
+  }
+  
+  try {
+    const entries = readdirSync(resolvedBase)
+    for (const entry of entries) {
+      const entryPath = join(resolvedBase, entry)
+      const stat = statSync(entryPath)
+      if (stat.isDirectory()) {
+        const subEntries = readdirSync(entryPath)
+        const hasWorkspaceMarker = subEntries.some(sub => {
+          const subPath = join(entryPath, sub)
+          return statSync(subPath).isDirectory() && 
+            (sub.startsWith('00') || sub.includes('项目') || sub.includes('规划'))
+        })
+        
+        if (hasWorkspaceMarker) {
+          workspaces.push({
+            path: entryPath,
+            name: entry,
+            createdAt: stat.birthtime.toISOString(),
+            projects: subEntries.filter(sub => {
+              const subPath = join(entryPath, sub)
+              return statSync(subPath).isDirectory() && !sub.startsWith('00') && !sub.startsWith('10') && !sub.startsWith('20')
+            })
+          })
+        }
+      }
+    }
+  } catch {
+    // Ignore errors when scanning for workspaces
+  }
+  
+  return workspaces
+}
+
+export function getWorkspaceProjects(workspacePath: string): string[] {
+  const resolvedPath = resolve(workspacePath)
+  if (!existsSync(resolvedPath)) {
+    return []
+  }
+  
+  try {
+    const entries = readdirSync(resolvedPath)
+    return entries.filter(entry => {
+      const entryPath = join(resolvedPath, entry)
+      return statSync(entryPath).isDirectory() && !entry.match(/^\d{2}/)
+    })
+  } catch {
+    return []
   }
 }

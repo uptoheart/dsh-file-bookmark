@@ -1,16 +1,12 @@
-// dsh-file-bookmark client plugin — injects a sidebar entry and panel into the DSH Web GUI.
+// dsh-file-bookmark client plugin — injects sidebar entry, panel is an iframe of the standalone UI.
 //
 // Architecture:
-//   - Sidebar: plain-DOM button injected after the "New Session" button, self-healing via MutationObserver.
-//   - Panel:   plain-DOM container injected into the center column, toggled via data attribute on <html>.
-//   - API:     communicates with the host plugin's HTTP API (same-origin via fetch).
-//   - Features: split into ./client/add.ts, ./client/open.ts, ./client/create.ts (each owns one card).
+//   - Sidebar: plain-DOM button, self-healing via MutationObserver.
+//   - Panel:   iframe pointing to the host plugin's HTTP server (server.ts serves ui.html at "/").
+//              Single source of truth: src/ui.html + src/server.ts.
 //
 import type { Context } from '@deepseek-ai/cordis'
-import { STYLES, subscribe, refreshBookmarks, discoverServer } from './client/shared.js'
-import { renderAddCard, wireAddEvents, renderAddList } from './client/add.js'
-import { renderOpenCard, wireOpenEvents, renderOpenList } from './client/open.js'
-import { renderCreateCard, wireCreateEvents } from './client/create.js'
+import { STYLES, discoverServer } from './client/shared.js'
 
 export const inject: string[] = []
 
@@ -72,22 +68,13 @@ function showConversation(): void {
   content.style.position = originalPosition || ''
 }
 
-// ── Panel UI assembly ─────────────────────────────────────────────────────────
-function buildPanelHtml(): string {
-  return `<div class="bkm-panel">
-<h1>📁 文件收藏 &amp; 项目创建助手</h1>
-<div class="bkm-grid">
-${renderAddCard()}
-${renderOpenCard()}
-${renderCreateCard()}
-</div></div>`
-}
-
 // ── Panel lifecycle ───────────────────────────────────────────────────────────
 const PANEL_ACTIVE_ATTR = 'data-dsh-bookmark-active'
 
 let panelContainer: HTMLDivElement | undefined
+let panelIframe: HTMLIFrameElement | undefined
 let panelOpen = false
+let serverBaseUrl = ''
 
 function isPanelOpen(): boolean {
   return document.documentElement.hasAttribute(PANEL_ACTIVE_ATTR)
@@ -116,23 +103,23 @@ function ensurePanelMounted(): void {
   if (panelContainer?.isConnected) return
   const column = centerColumn()
   if (!column) return
-  if (panelContainer) { panelContainer.remove(); panelContainer = undefined }
+  if (panelContainer) { panelContainer.remove(); panelContainer = undefined; panelIframe = undefined }
+
+  const prevPos = column.style.position
+  if (prevPos !== 'absolute' && prevPos !== 'fixed') column.style.position = 'relative'
+
   panelContainer = document.createElement('div')
   panelContainer.dataset['dshBookmarkView'] = ''
   panelContainer.dataset['dshPlugin'] = PLUGIN_ID
-  panelContainer.style.display = 'none'
-  column.appendChild(panelContainer)
-  panelContainer.innerHTML = buildPanelHtml()
-  wirePanelEvents(panelContainer)
-  // Subscribe list re-renders to bookmark state changes
-  subscribe(renderAddList)
-  subscribe(renderOpenList)
-}
+  panelContainer.style.cssText = 'display:none;width:100%;height:100%;position:absolute;inset:0;z-index:1;'
 
-function wirePanelEvents(root: HTMLElement): void {
-  wireAddEvents(root)
-  wireOpenEvents(root)
-  wireCreateEvents(root)
+  panelIframe = document.createElement('iframe')
+  panelIframe.style.cssText = 'width:100%;height:100%;border:0;display:block;'
+  panelIframe.title = '文件收藏助手'
+  if (serverBaseUrl) panelIframe.src = serverBaseUrl
+
+  panelContainer.appendChild(panelIframe)
+  column.appendChild(panelContainer)
 }
 
 function syncPanelVisibility(): void {
@@ -156,16 +143,9 @@ function injectSidebarEntry(): void {
   entry.setAttribute(ENTRY_ATTR, '')
   entry.setAttribute('data-dsh-plugin', PLUGIN_ID)
   entry.setAttribute('data-dsh-part', 'sidebar-entry')
-  entry.innerHTML = '<svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4.5v7l4 2V6.5l-4-2z"/><path d="M6 6.5l4-2v7l-4-2"/><path d="M14 3.5l-4 2v7l4-2v-7z"/></svg>'
+  entry.innerHTML = '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4.5v7l4 2V6.5l-4-2z"/><path d="M6 6.5l4-2v7l-4-2"/><path d="M14 3.5l-4 2v7l4-2v-7z"/></svg><span class="bkm-sidebar-label">文件收藏助手</span>'
   entry.title = '文件收藏助手'
   entry.setAttribute('aria-label', '文件收藏助手')
-
-  const label = document.createElement('span')
-  label.textContent = '文件收藏助手'
-  label.style.cssText = 'font-size:12px;margin-left:6px;'
-
-  entry.style.cssText = 'display:flex;align-items:center;width:100%;padding:6px 10px;border:none;background:transparent;color:inherit;cursor:pointer;font-size:13px;border-radius:6px;'
-  entry.appendChild(label)
 
   entry.addEventListener('click', () => {
     if (isPanelOpen()) {
@@ -173,7 +153,9 @@ function injectSidebarEntry(): void {
       entry.classList.remove('active')
     } else {
       openPanel()
-      refreshBookmarks()
+      if (panelIframe && serverBaseUrl && panelIframe.src !== serverBaseUrl) {
+        panelIframe.src = serverBaseUrl
+      }
       entry.classList.add('active')
     }
     syncPanelVisibility()
@@ -227,9 +209,9 @@ export function apply(_ctx: Context): void {
   globalThis.__dshFileBookmarkApplied = true
 
   async function init(): Promise<void> {
-    const base = await discoverServer()
-    if (!base) {
-      console.warn('[dsh-file-bookmark] 无法连接到宿主服务，面板 API 不可用')
+    serverBaseUrl = await discoverServer()
+    if (!serverBaseUrl) {
+      console.warn('[dsh-file-bookmark] 无法连接到宿主服务，面板 iframe 不可用')
     }
 
     const styleEl = document.createElement('style')

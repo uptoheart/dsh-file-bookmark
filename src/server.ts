@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { sendJson, sendHtml, sendOptions } from './server-utils.js'
 import { handleListBookmarks, handleAddBookmark, handleRemoveBookmark } from './routes/bookmarks.js'
 import { handleOpenBookmark } from './routes/open.js'
-import { handleCreateProject, handleSelectFolder, handleProjectTypes } from './routes/project.js'
+import { handleCreateProject, handleSelectFolder, handleProjectTypes, handleWorkspaces } from './routes/project.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -19,6 +19,7 @@ function route(method: string, url: string): Handler | null {
   if (method === 'POST' && url === '/api/create-project') return handleCreateProject
   if (method === 'GET' && url === '/api/select-folder') return handleSelectFolder
   if (method === 'GET' && url === '/api/project-types') return handleProjectTypes
+  if (method === 'GET' && url.startsWith('/api/workspaces')) return handleWorkspaces
   if (method === 'GET' && (url === '/' || url === '/index.html')) {
     return (_req, res) => sendHtml(res, HTML)
   }
