@@ -164,6 +164,19 @@ function injectSidebarEntry(): void {
   btn.insertAdjacentElement('afterend', entry)
 }
 
+// ── Auto-reload DSH after workspace creation ────────────────────────────────
+function setupMessageListener(): void {
+  window.addEventListener('message', (evt) => {
+    const data = evt.data as { type?: string; path?: string; title?: string } | null
+    if (!data || data.type !== 'dsh-file-bookmark:workspace-created') return
+    if (!data.path || !data.title) return
+    console.log('[dsh-file-bookmark] 工作区已创建，即将自动刷新 DSH:', data.title, data.path)
+    setTimeout(() => {
+      try { window.location.reload() } catch { /* ignore */ }
+    }, 800)
+  })
+}
+
 // ── Self-healing observers ────────────────────────────────────────────────────
 let sidebarObserver: MutationObserver | undefined
 let panelColumnObserver: MutationObserver | undefined
@@ -223,6 +236,7 @@ export function apply(_ctx: Context): void {
     startPanelColumnObserver()
 
     document.addEventListener('click', handleSidebarClick, true)
+    setupMessageListener()
 
     document.addEventListener('dsh-panel-activate', ((e: CustomEvent) => {
       if (e.detail && e.detail !== 'bookmark' && panelOpen) {

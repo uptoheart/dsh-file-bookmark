@@ -333,6 +333,81 @@
   }
   .results .line { padding: 3px 0; border-bottom: 1px solid var(--border); }
   .results .line:last-child { border-bottom: none; }
+  .ws-card {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .ws-card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 2px 8px rgba(245,158,11,.1);
+  }
+  .ws-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+  .ws-title {
+    font-size: .82rem;
+    font-weight: 600;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+  }
+  .ws-path {
+    font-size: .62rem;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 8px;
+  }
+  .ws-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+    gap: 6px;
+  }
+  .ws-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 6px 4px;
+    border-radius: 5px;
+    background: var(--surface);
+    transition: background .15s;
+    cursor: default;
+  }
+  .ws-cell:hover { background: rgba(245,158,11,.08); }
+  .ws-icon {
+    font-size: 1.1rem;
+    line-height: 1;
+    margin-bottom: 3px;
+  }
+  .ws-cell-name {
+    font-size: .62rem;
+    color: var(--text-dim);
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+  .ws-more {
+    color: var(--accent);
+    font-size: .6rem;
+    font-weight: 500;
+  }
   @media (max-width: 900px) {
     .grid { grid-template-columns: 1fr; }
   }
@@ -377,52 +452,51 @@
     <div class="list" id="bookmark-list"></div>
   </div>
 
-  <!-- 创建项目 -->
+  <!-- 创建项目 / 工作区列表 -->
   <div class="card" id="card-project">
     <h2>🚀 创建项目</h2>
-    <p class="subtitle">选择项目类型，一键创建标准工程结构</p>
-    <div class="fg">
-      <label for="workspace-select">选择工作区（可选）</label>
-      <select id="workspace-select">
-        <option value="">-- 不选择工作区 --</option>
-      </select>
-    </div>
-    <div class="fg">
-      <label for="project-base">目标目录</label>
-      <div class="path-row">
-        <input type="text" id="project-base" placeholder="C:\projects 或 /home/me/projects">
-        <button class="btn btn-s" id="select-folder-btn" type="button">📂 选择文件夹</button>
+    <p class="subtitle">选择类型一键创建，下方展示目标目录中的工作区</p>
+    <div class="add-form">
+      <div class="fg">
+        <label for="project-type">项目类型</label>
+        <select id="project-type">
+          <optgroup label="基础"><option value="empty">工作区</option></optgroup>
+          <optgroup label="项目管理"><option value="project-management">项目管理工程</option></optgroup>
+          <optgroup label="代码类工程">
+            <option value="code-java">Java 工程</option>
+            <option value="code-python">Python 工程</option>
+            <option value="code-vue">Vue 工程（npm 创建）</option>
+            <option value="code-dsh-plugin">DSH Plugin 工程</option>
+          </optgroup>
+          <optgroup label="知识类工程"><option value="knowledge">知识类工程</option></optgroup>
+          <optgroup label="探索类工程"><option value="exploration">探索类工程</option></optgroup>
+          <optgroup label="复制类工程"><option value="copy">复制类工程</option></optgroup>
+        </select>
       </div>
-    </div>
-    <div class="fg">
-      <label for="project-name">项目名称</label>
-      <input type="text" id="project-name" placeholder="my-project">
-    </div>
-    <div class="fg">
-      <label for="project-type">项目类型</label>
-      <select id="project-type">
-        <optgroup label="基础"><option value="empty">工作区</option></optgroup>
-        <optgroup label="项目管理"><option value="project-management">项目管理工程</option></optgroup>
-        <optgroup label="代码类工程">
-          <option value="code-java">Java 工程</option>
-          <option value="code-python">Python 工程</option>
-          <option value="code-vue">Vue 工程（npm 创建）</option>
-          <option value="code-dsh-plugin">DSH Plugin 工程</option>
-        </optgroup>
-        <optgroup label="知识类工程"><option value="knowledge">知识类工程</option></optgroup>
-        <optgroup label="探索类工程"><option value="exploration">探索类工程</option></optgroup>
-        <optgroup label="复制类工程"><option value="copy">复制类工程</option></optgroup>
-      </select>
-    </div>
-    <div class="fg hidden" id="source-wrap">
-      <label for="source-path">源工程路径</label>
-      <div class="path-row">
-        <input type="text" id="source-path" placeholder="C:\projects\source-project">
-        <button class="btn btn-s" id="select-source-btn" type="button">📂 选择</button>
+      <div class="fg hidden" id="source-wrap">
+        <label for="source-path">源工程目录</label>
+        <div class="path-row">
+          <input type="text" id="source-path" placeholder="C:\projects\source-project">
+          <button class="btn btn-s" id="select-source-btn" type="button">📂 选择</button>
+        </div>
       </div>
+      <div class="fg">
+        <label for="project-base">目标目录</label>
+        <div class="path-row">
+          <input type="text" id="project-base" placeholder="C:\projects 或 /home/me/projects">
+          <button class="btn btn-s" id="select-folder-btn" type="button">📂 选择</button>
+        </div>
+      </div>
+      <div class="fg">
+        <label for="project-name">项目名称</label>
+        <input type="text" id="project-name" placeholder="my-project">
+      </div>
+      <button class="btn btn-primary" id="create-project-btn" type="button">🚀 创建项目</button>
     </div>
-    <button class="btn btn-primary" id="create-project-btn" type="button">🚀 创建项目</button>
-    <div class="list mt10" id="project-results"></div>
+    <div class="sort-bar" id="ws-sort-bar">
+      <span>工作区列表：</span>
+    </div>
+    <div class="list" id="workspace-list"></div>
   </div>
 
 </div>
@@ -612,16 +686,7 @@
     const type = document.getElementById('project-type').value
     document.getElementById('source-wrap').classList.toggle('hidden', type !== 'copy')
   })
-  document.getElementById('workspace-select').addEventListener('change', () => {
-    const workspaceEl = document.getElementById('workspace-select')
-    const baseEl = document.getElementById('project-base')
-    if (workspaceEl.value) {
-      baseEl.value = workspaceEl.value
-      baseEl.disabled = true
-    } else {
-      baseEl.disabled = false
-    }
-  })
+  document.getElementById('project-base').addEventListener('change', loadWorkspaceList)
   document.getElementById('create-project-btn').addEventListener('click', createProject)
 
   async function selectFolder(targetInputId) {
@@ -630,40 +695,86 @@
       if (data.success && data.path) {
         document.getElementById(targetInputId).value = data.path
         toast(data.message)
-        loadWorkspaces()
+        if (targetInputId === 'project-base') loadWorkspaceList()
       } else {
         toast(data.message, false)
       }
     } catch (e) { toast('选择文件夹失败: ' + e.message, false) }
   }
 
-  async function loadWorkspaces() {
+  async function loadWorkspaceList() {
+    const basePath = document.getElementById('project-base').value.trim()
+    const container = document.getElementById('workspace-list')
+    const url = basePath ? '/workspaces?path=' + encodeURIComponent(basePath) : '/workspaces'
     try {
-      const basePath = document.getElementById('project-base').value.trim()
-      if (!basePath) return
-      
-      const data = await apiGet('/workspaces?path=' + encodeURIComponent(basePath))
+      const data = await apiGet(url)
       if (data.success) {
-        const workspaceEl = document.getElementById('workspace-select')
-        const currentSelection = workspaceEl.value
-        
-        workspaceEl.innerHTML = '<option value="">-- 不选择工作区 --</option>' + 
-          data.workspaces.map(ws => 
-            `<option value="${ws.path}" ${ws.path === currentSelection ? 'selected' : ''}>${ws.name}</option>`
-          ).join('')
+        renderWorkspaceList(data.workspaces)
+      } else {
+        container.innerHTML = '<div class="empty">加载工作区失败</div>'
       }
-    } catch {}
+    } catch (e) {
+      container.innerHTML = '<div class="empty">加载工作区失败: ' + escapeHtml(e.message) + '</div>'
+    }
   }
 
+  function renderWorkspaceList(workspaces) {
+    const container = document.getElementById('workspace-list')
+    if (!workspaces || workspaces.length === 0) {
+      container.innerHTML = '<div class="empty">目标目录下暂无工作区</div>'
+      return
+    }
+    container.innerHTML = workspaces.map(ws => workspaceCardHtml(ws)).join('')
+  }
+
+  function workspaceCardHtml(ws) {
+    const items = ws.items || []
+    const dirs = items.filter(i => i.isDirectory).slice(0, 6)
+    const files = items.filter(i => !i.isDirectory).slice(0, 4)
+    const dirIcons = ['📁', '📂', '🗂', '📦', '🗃', '📑']
+    const fileIcons = ['📄', '📝', '📋', '📃']
+    const gridHtml = dirs.map((d, idx) => {
+      const icon = dirIcons[idx % dirIcons.length]
+      return `<div class="ws-cell" title="${escapeHtml(d.name)}">
+        <span class="ws-icon">${icon}</span>
+        <span class="ws-cell-name">${escapeHtml(d.name)}</span>
+      </div>`
+    }).join('') + files.map((f, idx) => {
+      const icon = fileIcons[idx % fileIcons.length]
+      return `<div class="ws-cell" title="${escapeHtml(f.name)}">
+        <span class="ws-icon">${icon}</span>
+        <span class="ws-cell-name">${escapeHtml(f.name)}</span>
+      </div>`
+    }).join('')
+    const moreCount = items.length - dirs.length - files.length
+    const moreHtml = moreCount > 0 ? `<div class="ws-cell ws-more">+${moreCount} 更多</div>` : ''
+    return `<div class="ws-card" data-wspath="${escapeHtml(ws.path)}">
+      <div class="ws-header">
+        <div class="ws-title">🏠 ${escapeHtml(ws.name)}</div>
+        <div class="ws-acts">
+          <button class="btn btn-s btn-primary" data-ws-open="${escapeHtml(ws.path)}">打开</button>
+        </div>
+      </div>
+      <div class="ws-path">${escapeHtml(ws.path)}</div>
+      <div class="ws-grid">${gridHtml}${moreHtml}</div>
+    </div>`
+  }
+
+  document.getElementById('workspace-list').addEventListener('click', (e) => {
+    const openBtn = e.target.closest('[data-ws-open]')
+    if (openBtn) {
+      const path = openBtn.dataset.wsOpen
+      apiPost('/open', { target: path }).then(data => toast(data.message, data.success)).catch(err => toast('打开失败: ' + err.message, false))
+    }
+  })
+
   async function createProject() {
-    const workspaceEl = document.getElementById('workspace-select')
     const basePath = document.getElementById('project-base').value.trim()
     const projectName = document.getElementById('project-name').value.trim()
     const projectType = document.getElementById('project-type').value
     const sourcePath = document.getElementById('source-path').value.trim()
-    const workspacePath = workspaceEl.value.trim() || undefined
 
-    if (!basePath && !workspacePath) { toast('请选择或输入目标目录', false); return }
+    if (!basePath) { toast('请选择或输入目标目录', false); return }
     if (!projectName) { toast('请输入项目名称', false); return }
     if (projectType === 'copy' && !sourcePath) { toast('请输入源工程路径', false); return }
 
@@ -677,10 +788,27 @@
         projectName,
         projectType,
         sourcePath: projectType === 'copy' ? sourcePath : undefined,
-        workspacePath,
       })
       toast(data.message, data.success)
-      renderProjectResults(data)
+      if (data.success) {
+        document.getElementById('project-name').value = ''
+        loadWorkspaceList()
+        try {
+          const msg = {
+            type: 'dsh-file-bookmark:workspace-created',
+            path: data.projectPath,
+            title: projectName,
+          }
+          if (window.parent && window.parent !== window) {
+            window.parent.postMessage(msg, '*')
+          }
+          if (window.top && window.top !== window && window.top !== window.parent) {
+            window.top.postMessage(msg, '*')
+          }
+        } catch (pmErr) {
+          console.warn('[dsh-file-bookmark] postMessage 失败', pmErr)
+        }
+      }
     } catch (e) {
       toast('创建项目失败: ' + e.message, false)
     } finally {
@@ -689,32 +817,8 @@
     }
   }
 
-  function renderProjectResults(result) {
-    const container = document.getElementById('project-results')
-    if (!result.success) {
-      container.innerHTML = `<div class="item">
-      <div class="info">
-        <div class="name">❌ 创建失败</div>
-        <div class="path">${escapeHtml(result.message)}</div>
-      </div>
-    </div>`
-      return
-    }
-    const detailsHtml = (result.details || []).map(d =>
-      `<div class="line">${escapeHtml(d)}</div>`
-    ).join('')
-    const name = result.projectPath.split(/[/\\]/).pop() || result.projectPath
-    container.innerHTML = `<div class="item">
-      <div class="info">
-        <div class="name">✅ ${escapeHtml(name)}</div>
-        <div class="path">${escapeHtml(result.projectPath)}</div>
-      </div>
-      <span class="badge badge-folder">project</span>
-    </div>
-    <div class="results">${detailsHtml}</div>`
-  }
-
   refreshAll()
+  loadWorkspaceList()
 })();
 </script>
 </body>

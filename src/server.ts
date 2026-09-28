@@ -9,6 +9,8 @@ import { handleCreateProject, handleSelectFolder, handleProjectTypes, handleWork
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
+type DshContext = Record<string, unknown>
+
 type Handler = (req: IncomingMessage, res: ServerResponse, url: string) => Promise<void> | void
 
 function route(method: string, url: string): Handler | null {
@@ -27,6 +29,15 @@ function route(method: string, url: string): Handler | null {
 }
 
 let HTML = ''
+let dshCtx: DshContext | null = null
+
+export function setDshCtx(ctx: DshContext): void {
+  dshCtx = ctx
+}
+
+export function getDshCtx(): DshContext | null {
+  return dshCtx
+}
 
 export async function startServer(port = 17319): Promise<{ url: string; close: () => Promise<void> }> {
   HTML = readFileSync(resolve(__dirname, 'ui.html'), 'utf-8')

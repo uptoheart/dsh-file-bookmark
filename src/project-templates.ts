@@ -1,10 +1,149 @@
-import { existsSync, mkdirSync, writeFileSync, cpSync, readdirSync, readFileSync, statSync } from 'node:fs'
+﻿import { existsSync, mkdirSync, writeFileSync, cpSync, readdirSync, readFileSync, statSync, unlinkSync } from 'node:fs'
 import { join, resolve, basename } from 'node:path'
 import { exec, execFile } from 'node:child_process'
 import { promisify } from 'node:util'
+import { homedir } from 'node:os'
 
 const execAsync = promisify(exec)
 const execFileAsync = promisify(execFile)
+
+const DSH_WORKSPACE_JSON = join(homedir(), '.dsh', 'storages', 'workspace.json')
+const DSH_SESSIONS_DIR = join(homedir(), '.dsh', 'sessions')
+
+function toSessionDirName(wsPath: string): string {
+  const resolved = resolve(wsPath)
+  const isWin = process.platform === 'win32'
+  const sep = isWin ? /[\\/]/g : /\//g
+  let parts = resolved.split(sep).filter(Boolean)
+  if (isWin && parts.length > 0 && /^[A-Za-z]:$/.test(parts[0])) {
+    parts[0] = parts[0].replace(':', '')
+  }
+  const normalized = parts.join('-')
+  return `${normalized}--`
+}
+
+interface DshWorkspaceEntry {
+  path: string
+  title: string
+  sessionIds: string[]
+  createdAt: string
+  updatedAt: string
+}
+
+interface DshWorkspaceJson {
+  unit?: { name: string; version: number }
+  global?: {
+    initialized?: boolean
+    workspaceIds?: string[]
+    archivedSessionIds?: string[]
+    pinnedSessionIds?: string[]
+  }
+  tables?: {
+    workspaces?: Record<string, DshWorkspaceEntry>
+  }
+}
+
+function readDshWorkspaceJson(): DshWorkspaceJson {
+  try {
+    if (!existsSync(DSH_WORKSPACE_JSON)) return {}
+    const raw = readFileSync(DSH_WORKSPACE_JSON, 'utf8')
+    return JSON.parse(raw) as DshWorkspaceJson
+  } catch {
+    return {}
+  }
+}
+
+function writeDshWorkspaceJson(data: DshWorkspaceJson): void {
+  try {
+    writeFileSync(DSH_WORKSPACE_JSON, JSON.stringify(data, null, 2), 'utf8')
+  } catch (err) {
+    console.error('[dsh-file-bookmark] 写入 workspace.json 失败:', err)
+  }
+}
+
+function uuidv4(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0
+    const v = c === 'x' ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
+}
+
+export function listDshWorkspaces(): WorkspaceInfo[] {
+  const data = readDshWorkspaceJson()
+  const workspaces: WorkspaceInfo[] = []
+  const entries = data.tables?.workspaces ?? {}
+  const ids = data.global?.workspaceIds ?? []
+
+  for (const id of ids) {
+    const entry = entries[id]
+    if (!entry) continue
+    const resolvedPath = resolve(entry.path)
+    if (!existsSync(resolvedPath)) continue
+    const stat = statSync(resolvedPath)
+    if (!stat.isDirectory()) continue
+
+    let items: WorkspaceItem[] = []
+    try {
+      items = collectWorkspaceItems(resolvedPath)
+    } catch { /* ignore */ }
+
+    workspaces.push({
+      path: resolvedPath,
+      name: entry.title || basename(resolvedPath),
+      createdAt: entry.createdAt || stat.birthtime.toISOString(),
+      items,
+    })
+  }
+
+  workspaces.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  return workspaces
+}
+
+export function registerDshWorkspace(workspacePath: string, title?: string): boolean {
+  const resolvedPath = resolve(workspacePath)
+  if (!existsSync(resolvedPath)) {
+    console.error('[dsh-file-bookmark] 注册工作区失败: 路径不存在', resolvedPath)
+    return false
+  }
+
+  let data = readDshWorkspaceJson()
+  if (!data.unit) data.unit = { name: 'workspace', version: 2 }
+  if (!data.global) data.global = {}
+  if (!data.global.workspaceIds) data.global.workspaceIds = []
+  if (!data.tables) data.tables = {}
+  if (!data.tables.workspaces) data.tables.workspaces = {}
+
+  const entry = Object.values(data.tables.workspaces).find(
+    (e) => resolve(e.path) === resolvedPath
+  )
+
+  if (!entry) {
+    const id = uuidv4()
+    const now = new Date().toISOString()
+    data.tables.workspaces[id] = {
+      path: resolvedPath,
+      title: title || basename(resolvedPath),
+      sessionIds: [],
+      createdAt: now,
+      updatedAt: now,
+    }
+    data.global.workspaceIds.push(id)
+    writeDshWorkspaceJson(data)
+  }
+
+  try {
+    const sessionDirName = toSessionDirName(resolvedPath)
+    const sessionDir = join(DSH_SESSIONS_DIR, sessionDirName)
+    if (!existsSync(sessionDir)) {
+      mkdirSync(sessionDir, { recursive: true })
+    }
+  } catch (err) {
+    console.warn('[dsh-file-bookmark] 创建 sessions 目录失败:', err)
+  }
+
+  return true
+}
 
 export type ProjectType =
   | 'empty'
@@ -29,11 +168,17 @@ export const PROJECT_TYPES: Array<{ value: ProjectType; label: string; group: st
   { value: 'copy', label: '复制类工程', group: '复制类工程' },
 ]
 
+export interface WorkspaceItem {
+  name: string
+  path: string
+  isDirectory: boolean
+}
+
 export interface WorkspaceInfo {
   path: string
   name: string
   createdAt: string
-  projects: string[]
+  items: WorkspaceItem[]
 }
 
 export interface CreateProjectOptions {
@@ -41,7 +186,6 @@ export interface CreateProjectOptions {
   projectName: string
   projectType: ProjectType
   sourcePath?: string
-  workspacePath?: string
 }
 
 export interface CreateProjectResult {
@@ -192,7 +336,7 @@ function ensureDir(dir: string): void {
 }
 
 function createProjectManagement(basePath: string, projectName: string): CreateProjectResult {
-  const projectPath = join(resolve(basePath), projectName)
+  const projectPath = resolveProjectPath(basePath, projectName)
   ensureDir(projectPath)
   const details: string[] = []
   for (const dir of PROJECT_MANAGEMENT_DIRS) {
@@ -209,7 +353,7 @@ function createProjectManagement(basePath: string, projectName: string): CreateP
 }
 
 function createKnowledgeProject(basePath: string, projectName: string): CreateProjectResult {
-  const projectPath = join(resolve(basePath), projectName)
+  const projectPath = resolveProjectPath(basePath, projectName)
   ensureDir(projectPath)
   const details: string[] = []
   for (const dir of KNOWLEDGE_DIRS) {
@@ -226,7 +370,7 @@ function createKnowledgeProject(basePath: string, projectName: string): CreatePr
 }
 
 function createExplorationProject(basePath: string, projectName: string): CreateProjectResult {
-  const projectPath = join(resolve(basePath), projectName)
+  const projectPath = resolveProjectPath(basePath, projectName)
   ensureDir(projectPath)
   const details: string[] = []
   for (const dir of EXPLORATION_DIRS) {
@@ -262,7 +406,7 @@ function createCodeBase(projectPath: string): string[] {
 }
 
 async function createJavaProject(basePath: string, projectName: string): Promise<CreateProjectResult> {
-  const projectPath = join(resolve(basePath), projectName)
+  const projectPath = resolveProjectPath(basePath, projectName)
   ensureDir(projectPath)
   const details = createCodeBase(projectPath)
 
@@ -308,7 +452,7 @@ async function createJavaProject(basePath: string, projectName: string): Promise
 }
 
 async function createPythonProject(basePath: string, projectName: string): Promise<CreateProjectResult> {
-  const projectPath = join(resolve(basePath), projectName)
+  const projectPath = resolveProjectPath(basePath, projectName)
   ensureDir(projectPath)
   const details = createCodeBase(projectPath)
 
@@ -381,7 +525,7 @@ async function createVueProject(basePath: string, projectName: string): Promise<
 }
 
 async function createDshPluginProject(basePath: string, projectName: string): Promise<CreateProjectResult> {
-  const projectPath = join(resolve(basePath), projectName)
+  const projectPath = resolveProjectPath(basePath, projectName)
   ensureDir(projectPath)
   const details = createCodeBase(projectPath)
 
@@ -451,24 +595,30 @@ export function apply(_ctx: Context) {
   }
 }
 
-function createEmptyProject(basePath: string, projectName: string, workspacePath?: string): CreateProjectResult {
-  const resolvedBase = workspacePath ? resolve(workspacePath) : resolve(basePath)
-  const projectPath = join(resolvedBase, projectName)
+function resolveProjectPath(basePath: string, projectName: string): string {
+  const resolvedBase = resolve(basePath)
+  const childPath = join(resolvedBase, projectName)
+  try {
+    const baseStat = statSync(resolvedBase)
+    if (baseStat.isDirectory() && basename(resolvedBase).toLowerCase() === projectName.toLowerCase()) {
+      return resolvedBase
+    }
+  } catch {
+    // basePath doesn't exist yet, fallback to join
+  }
+  return childPath
+}
+
+function createEmptyProject(basePath: string, projectName: string): CreateProjectResult {
+  const projectPath = resolveProjectPath(basePath, projectName)
   ensureDir(projectPath)
   
   const details: string[] = [`已创建目录: ${projectPath}`]
-  let message = workspacePath 
-    ? `工作区项目创建成功: ${projectPath}`
-    : `工作区创建成功: ${projectPath}`
-  
-  if (workspacePath) {
-    details.push(`工作区路径: ${workspacePath}`)
-  }
   
   return {
     success: true,
     projectPath,
-    message,
+    message: `工作区创建成功: ${projectPath}`,
     details,
   }
 }
@@ -523,7 +673,7 @@ function createCopyProject(
   }
 
   const sourceName = basename(resolvedSource)
-  const projectPath = join(resolve(basePath), projectName)
+  const projectPath = resolveProjectPath(basePath, projectName)
 
   if (existsSync(projectPath)) {
     return {
@@ -546,7 +696,7 @@ function createCopyProject(
 }
 
 export async function createProject(options: CreateProjectOptions): Promise<CreateProjectResult> {
-  const { basePath, projectName, projectType, sourcePath, workspacePath } = options
+  const { basePath, projectName, projectType, sourcePath } = options
 
   if (!projectName.trim()) {
     return {
@@ -557,18 +707,18 @@ export async function createProject(options: CreateProjectOptions): Promise<Crea
     }
   }
 
-  if (!basePath.trim() && !workspacePath?.trim()) {
+  if (!basePath.trim()) {
     return {
       success: false,
       projectPath: '',
-      message: '目标目录或工作区路径不能为空',
+      message: '目标目录不能为空',
       details: [],
     }
   }
 
   switch (projectType) {
     case 'empty':
-      return createEmptyProject(basePath, projectName, workspacePath)
+      return createEmptyProject(basePath, projectName)
     case 'project-management':
       return createProjectManagement(basePath, projectName)
     case 'code-java':
@@ -603,6 +753,74 @@ export async function createProject(options: CreateProjectOptions): Promise<Crea
   }
 }
 
+const WORKSPACE_MARKER_DIRS = ['00', '10', '20', '30', '40', '50', '60', '70', '80', '90', '91', '92', '93', '95', '96', '97', '99']
+const WORKSPACE_MARKER_NAMES = ['规划', '立项', '开发', '管理', '知识', '探索']
+const CODE_MARKER_FILES = ['package.json', 'pom.xml', 'requirements.txt', 'Cargo.toml', 'go.mod', '.git', 'CLAUDE.md', 'AGENT.md']
+
+function collectWorkspaceItems(dirPath: string): WorkspaceItem[] {
+  let entries: string[] = []
+  try { entries = readdirSync(dirPath) } catch { return [] }
+  return entries
+    .filter(name => !name.startsWith('.') || name === '.git')
+    .map(name => {
+      const p = join(dirPath, name)
+      try {
+        const s = statSync(p)
+        return { name, path: p, isDirectory: s.isDirectory() }
+      } catch {
+        return { name, path: p, isDirectory: false }
+      }
+    })
+    .sort((a, b) => {
+      if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1
+      return a.name.localeCompare(b.name)
+    })
+}
+
+function isWorkspaceDir(dirPath: string): boolean {
+  let entries: string[] = []
+  try { entries = readdirSync(dirPath) } catch { return false }
+  if (entries.length === 0) return false
+
+  const dirNames = entries.filter(name => {
+    try {
+      const s = statSync(join(dirPath, name))
+      return s.isDirectory()
+    } catch { return false }
+  })
+
+  const hasMarkerDir = dirNames.some(d => {
+    const prefix = d.substring(0, 2)
+    if (WORKSPACE_MARKER_DIRS.includes(prefix)) return true
+    return WORKSPACE_MARKER_NAMES.some(n => d.includes(n))
+  })
+  if (hasMarkerDir) return true
+
+  const hasCodeMarker = entries.some(e => CODE_MARKER_FILES.includes(e))
+  if (hasCodeMarker) return true
+
+  const dirCount = dirNames.length
+  const fileCount = entries.length - dirCount
+  if (dirCount >= 2 && entries.length >= 4) return true
+
+  if (entries.length >= 6) return true
+
+  return false
+}
+
+function buildWorkspaceInfo(dirPath: string): WorkspaceInfo | null {
+  let stat
+  try { stat = statSync(dirPath) } catch { return null }
+  if (!stat.isDirectory()) return null
+  if (!isWorkspaceDir(dirPath)) return null
+  return {
+    path: resolve(dirPath),
+    name: basename(dirPath),
+    createdAt: stat.birthtime.toISOString(),
+    items: collectWorkspaceItems(dirPath),
+  }
+}
+
 export function detectWorkspaces(basePath: string): WorkspaceInfo[] {
   const resolvedBase = resolve(basePath)
   const workspaces: WorkspaceInfo[] = []
@@ -610,37 +828,23 @@ export function detectWorkspaces(basePath: string): WorkspaceInfo[] {
   if (!existsSync(resolvedBase)) {
     return workspaces
   }
+
+  const baseAsWorkspace = buildWorkspaceInfo(resolvedBase)
+  if (baseAsWorkspace) {
+    workspaces.push(baseAsWorkspace)
+    return workspaces
+  }
+
+  let entries: string[] = []
+  try { entries = readdirSync(resolvedBase) } catch { return workspaces }
   
-  try {
-    const entries = readdirSync(resolvedBase)
-    for (const entry of entries) {
-      const entryPath = join(resolvedBase, entry)
-      const stat = statSync(entryPath)
-      if (stat.isDirectory()) {
-        const subEntries = readdirSync(entryPath)
-        const hasWorkspaceMarker = subEntries.some(sub => {
-          const subPath = join(entryPath, sub)
-          return statSync(subPath).isDirectory() && 
-            (sub.startsWith('00') || sub.includes('项目') || sub.includes('规划'))
-        })
-        
-        if (hasWorkspaceMarker) {
-          workspaces.push({
-            path: entryPath,
-            name: entry,
-            createdAt: stat.birthtime.toISOString(),
-            projects: subEntries.filter(sub => {
-              const subPath = join(entryPath, sub)
-              return statSync(subPath).isDirectory() && !sub.startsWith('00') && !sub.startsWith('10') && !sub.startsWith('20')
-            })
-          })
-        }
-      }
-    }
-  } catch {
-    // Ignore errors when scanning for workspaces
+  for (const entry of entries) {
+    const entryPath = join(resolvedBase, entry)
+    const ws = buildWorkspaceInfo(entryPath)
+    if (ws) workspaces.push(ws)
   }
   
+  workspaces.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   return workspaces
 }
 
