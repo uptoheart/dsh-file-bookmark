@@ -77,6 +77,10 @@ const wrapped = `window.__ModuleLoader__.load({
 \t\tvar module = { exports: {} };
 \t\tvar exports = module.exports;
 \t\tObject.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
+		let __dshReact = require("react");
+		let __dshReactDOM = require("react-dom");
+		window.__dshReact = __dshReact;
+		window.__dshReactDOM = __dshReactDOM;
 ${code}
 ${exportsAssignments}
 \t\treturn module.exports;

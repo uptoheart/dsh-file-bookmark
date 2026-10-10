@@ -51,6 +51,14 @@ function officialSlots(ctx: MountContextFace): SlotsServiceFace | undefined {
 
 // ── Sidebar entry injection core ─────────────────────────────────────────────
 function findSidebarColumn(): HTMLElement | undefined {
+  const taskboardExact = document.querySelector<HTMLElement>(
+    '[data-pane="sidebar"] [class*="sidebarCol"] .dshDesktopUpstreamSidebar .dshDesktopSidebarSurface',
+  )
+  if (taskboardExact) {
+    dbg('sidebar column found via taskboard-exact selector')
+    return taskboardExact
+  }
+
   const selectors = [
     '[data-pane="sidebar"]',
     '[class*="sidebarCol"]',
@@ -184,7 +192,7 @@ function centerColumn(): HTMLElement | undefined {
 
 // ── Panel lifecycle ───────────────────────────────────────────────────────────
 const ACTIVE_ATTR = 'data-dsh-bookmark-active'
-const OTHER_ACTIVE_ATTRS = ['data-dsh-ssh-active', 'data-dsh-taskboard-active']
+const OTHER_ACTIVE_ATTRS = ['data-dsh-ssh-active', 'data-dsh-atb-active']
 const ACTIVATE_EVENT = 'dsh-panel-activate'
 
 let panelContainer: HTMLDivElement | undefined
@@ -199,7 +207,6 @@ function isPanelOpen(): boolean {
 function closePanel(): void {
   document.documentElement.removeAttribute(ACTIVE_ATTR)
   panelOpen = false
-  for (const attr of OTHER_ACTIVE_ATTRS) document.documentElement.removeAttribute(attr)
   document.dispatchEvent(new CustomEvent(ACTIVATE_EVENT, { detail: '' }))
 }
 
@@ -209,6 +216,40 @@ function openPanel(): void {
   document.documentElement.setAttribute(ACTIVE_ATTR, '')
   panelOpen = true
   document.dispatchEvent(new CustomEvent(ACTIVATE_EVENT, { detail: PANEL_NAME }))
+}
+
+const DSW_VARS = [
+  '--dsw-bg', '--dsw-bg-elevated', '--dsw-bg-inset', '--dsw-bg-panel',
+  '--dsw-border', '--dsw-border-strong',
+  '--dsw-text-primary', '--dsw-text-secondary',
+  '--dsw-hover', '--dsw-active',
+  '--dsw-alias-brand-primary', '--dsw-alias-label-primary', '--dsw-alias-label-primary-foreground',
+  '--dsw-alias-label-secondary', '--dsw-alias-button-primary-fill',
+  '--dsw-alias-bg-module-platform', '--dsw-alias-bg-overlay',
+  '--dsw-alias-state-error-primary', '--dsw-alias-border-l2',
+]
+
+function injectThemeToIframe(iframe: HTMLIFrameElement): void {
+  try {
+    const doc = iframe.contentDocument
+    if (!doc || !doc.documentElement) return
+    const parentStyle = getComputedStyle(document.documentElement)
+    const pairs: string[] = []
+    for (const v of DSW_VARS) {
+      const val = parentStyle.getPropertyValue(v).trim()
+      if (val) pairs.push(`${v}: ${val}`)
+    }
+    if (pairs.length === 0) return
+    const style = doc.createElement('style')
+    style.textContent = `:root { ${pairs.join('; ')}; }`
+    doc.documentElement.prepend(style)
+    const dsTheme = document.documentElement.getAttribute('data-ds-theme')
+      ?? document.body.getAttribute('data-ds-theme')
+    if (dsTheme) doc.documentElement.setAttribute('data-theme', dsTheme)
+    const isDark = document.documentElement.getAttribute('data-ds-dark-theme') !== null
+      || document.body.getAttribute('data-ds-dark-theme') !== null
+    if (isDark) doc.documentElement.setAttribute('data-theme', 'dark')
+  } catch { /* cross-origin */ }
 }
 
 function ensurePanelMounted(): void {
@@ -229,6 +270,7 @@ function ensurePanelMounted(): void {
   panelIframe.style.cssText = 'width:100%;height:100%;border:0;display:block;'
   panelIframe.title = '文件收藏助手'
   if (serverBaseUrl) panelIframe.src = serverBaseUrl
+  panelIframe.addEventListener('load', () => injectThemeToIframe(panelIframe!))
 
   panelContainer.appendChild(panelIframe)
   column.appendChild(panelContainer)
@@ -246,7 +288,7 @@ function createSidebarEntry(): HTMLButtonElement {
   entry.className = 'dsh-bkm-entry'
   entry.setAttribute('data-dsh-plugin', PLUGIN_ID)
   entry.setAttribute('data-dsh-part', 'sidebar-entry')
-  entry.innerHTML = '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4.5v7l4 2V6.5l-4-2z"/><path d="M6 6.5l4-2v7l-4-2"/><path d="M14 3.5l-4 2v7l4-2v-7z"/></svg><span class="bkm-sidebar-label">文件收藏助手</span>'
+  entry.innerHTML = '<span class="dsh-bkm-entry-icon"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4.5v7l4 2V6.5l-4-2z"/><path d="M6 6.5l4-2v7l-4-2"/><path d="M14 3.5l-4 2v7l4-2v-7z"/></svg></span><span class="bkm-sidebar-label">文件收藏助手</span>'
   entry.title = '文件收藏助手'
   entry.setAttribute('aria-label', '文件收藏助手')
 
@@ -319,6 +361,12 @@ function setupMessageListener(): void {
 // ── Legacy mount (matching dsh-taskboard board-mount.tsx) ─────────────────────
 
 function mountLegacy(): () => void {
+  console.info('[dsh-file-bookmark] 🛠️ mountLegacy: starting')
+  document.documentElement.removeAttribute(ACTIVE_ATTR)
+  document.querySelectorAll<HTMLElement>('[data-dsh-bookmark-entry], .dsh-bkm-entry').forEach((old) => {
+    old.remove()
+  })
+
   const entry = createSidebarEntry()
   let placed = false
   let root: HTMLElement | undefined
@@ -393,24 +441,24 @@ function mountLegacy(): () => void {
   }
   const onOtherActivate = (event: Event): void => {
     const detail = (event as CustomEvent).detail
-    if (detail !== PANEL_NAME && detail !== '' && panelOpen) {
-      closePanel()
-      syncActive()
-    }
+    if (detail === PANEL_NAME || detail === '') return
+    if (panelOpen) closePanel()
+    document.documentElement.removeAttribute(ACTIVE_ATTR)
+    syncActive()
   }
 
   document.addEventListener('click', onClickSidebarRow, true)
   document.addEventListener(ACTIVATE_EVENT, onOtherActivate)
 
   const htmlAttrObserver = new MutationObserver((mutations) => {
-    if (!panelOpen) return
     for (const m of mutations) {
       if (m.type !== 'attributes') continue
       if (m.attributeName === ACTIVE_ATTR) continue
       if (m.attributeName?.startsWith('data-dsh-') && m.attributeName.endsWith('-active')) {
         if (document.documentElement.hasAttribute(m.attributeName)) {
-          dbg('other plugin activated via attr:', m.attributeName, '— closing our panel')
-          closePanel()
+          dbg('other plugin activated via attr:', m.attributeName, '— clearing our active attr')
+          if (panelOpen) closePanel()
+          document.documentElement.removeAttribute(ACTIVE_ATTR)
           syncActive()
         }
       }
@@ -468,7 +516,7 @@ interface ReactLike {
 
 function getReact(): ReactLike | undefined {
   const anyWin = window as unknown as Record<string, unknown>
-  const R = (anyWin.React ?? anyWin.__REACT__) as Partial<ReactLike> | undefined
+  const R = (anyWin.__dshReact ?? anyWin.React ?? anyWin.__REACT__) as Partial<ReactLike> | undefined
   if (R && typeof R.createElement === 'function' && typeof R.useCallback === 'function') return R as ReactLike
   return undefined
 }
@@ -479,6 +527,7 @@ function makePanelPage(): ReactFC {
     if (!React) return null
     const iframeRef = React.useCallback((el: HTMLIFrameElement | null) => {
       if (el && serverBaseUrl && el.src !== serverBaseUrl) el.src = serverBaseUrl
+      if (el) el.addEventListener('load', () => injectThemeToIframe(el))
     }, [])
     return React.createElement(
       'div',
@@ -509,12 +558,13 @@ function makePanelIcon(): ReactFC {
 function tryRegisterOfficial(slots: SlotsServiceFace, ctx: MountContextFace): (() => void) | undefined {
   const React = getReact()
   if (!React) {
-    dbg('tryRegisterOfficial: React not available, skipping official path')
+    console.info('[dsh-file-bookmark] ❌ official path: React not available')
     return undefined
   }
   const disposers: Array<() => void> = []
   try {
     const layout = (ctx.get?.('layout') ?? (ctx as unknown as Record<string, unknown>).layout) as LayoutServiceFace | undefined
+    console.info('[dsh-file-bookmark] official path: layout service =', !!layout)
 
     const page = makePanelPage() as unknown as ReactFC
     disposers.push(slots.inject('main', () => slots.register(
@@ -527,9 +577,9 @@ function tryRegisterOfficial(slots: SlotsServiceFace, ctx: MountContextFace): ((
       { name: 'sidebar.panellist', id: OFFICIAL_PANEL_ID, order: PANEL_ROW_ORDER, label: () => '文件收藏助手' },
       icon,
     )))
-    console.info('[dsh-file-bookmark] official panel mode: registered', OFFICIAL_PANEL_ID)
+    console.info('[dsh-file-bookmark] ✅ official panel mode: registered', OFFICIAL_PANEL_ID)
   } catch (error) {
-    console.error('[dsh-file-bookmark] official panel registration failed — falling back to legacy:', error)
+    console.error('[dsh-file-bookmark] ❌ official registration failed — falling back to legacy:', error)
     for (const dispose of disposers.splice(0)) dispose()
     return undefined
   }
@@ -541,11 +591,16 @@ const PROBE_INTERVAL_MS = 350
 
 function mountPanelCompat(ctx: MountContextFace): () => void {
   const slots = officialSlots(ctx)
+  console.info('[dsh-file-bookmark] mountPanelCompat: slots available =', !!slots)
   if (slots !== undefined) {
     const dispose = tryRegisterOfficial(slots, ctx)
-    if (dispose !== undefined) return dispose
+    if (dispose !== undefined) {
+      console.info('[dsh-file-bookmark] → using OFFICIAL path')
+      return dispose
+    }
   }
 
+  console.info('[dsh-file-bookmark] → using LEGACY path (slots unavailable or registration failed)')
   let legacyDisposer: (() => void) | undefined = mountLegacy()
 
   let round = 0
@@ -560,7 +615,7 @@ function mountPanelCompat(ctx: MountContextFace): () => void {
         legacyDisposer?.()
         legacyDisposer = undefined
         clearInterval(timer)
-        console.info('[dsh-file-bookmark] upgraded to official panel mode')
+        console.info('[dsh-file-bookmark] → UPGRADED from legacy to official')
         return
       }
     }
@@ -568,7 +623,6 @@ function mountPanelCompat(ctx: MountContextFace): () => void {
       clearInterval(timer)
     }
   }, PROBE_INTERVAL_MS)
-
   return () => {
     clearInterval(timer)
     legacyDisposer?.()
@@ -601,6 +655,12 @@ export function apply(ctx: Context): void {
 
     const disposer = mountPanelCompat(mountCtx)
 
+    const themeObserver = new MutationObserver(() => {
+      if (panelIframe) injectThemeToIframe(panelIframe)
+    })
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-ds-theme', 'data-ds-dark-theme', 'class', 'style'] })
+    if (document.body) themeObserver.observe(document.body, { attributes: true, attributeFilter: ['data-ds-theme', 'data-ds-dark-theme', 'class', 'style'] })
+
     const globalAttrObserver = new MutationObserver(() => {
       if (!panelOpen && document.documentElement.hasAttribute(ACTIVE_ATTR)) {
         document.documentElement.removeAttribute(ACTIVE_ATTR)
@@ -611,7 +671,7 @@ export function apply(ctx: Context): void {
     setupMessageListener()
 
     ;(ctx as unknown as { effect?: (fn: () => () => void, label?: string) => void }).effect?.(() => {
-      const cleanup = () => { disposer(); globalAttrObserver.disconnect() }
+      const cleanup = () => { disposer(); globalAttrObserver.disconnect(); themeObserver.disconnect() }
       return cleanup
     }, 'dsh-file-bookmark: client mount')
   }

@@ -20,57 +20,100 @@ export async function discoverServer(): Promise<string> {
   return ''
 }
 
-// ── Sidebar entry styles (matching dsh-taskboard .dsh-atb-entry pattern) ────
+// ── Sidebar entry styles (exact copy of dsh-taskboard with !important) ────────
 export const STYLES = `
-/* ── Sidebar entry (left-aligned icon + label, same as taskboard) ─────── */
+/* ── Sidebar entry ─────────────────────────────────────────────────────── */
 .dsh-bkm-entry, [data-dsh-bookmark-entry] {
-  display: flex; align-items: center; justify-content: flex-start;
-  gap: 8px; position: relative;
-  width: 100%; margin: 2px 0; padding: 6px 10px;
-  border: none; border-radius: 8px; background: transparent;
-  color: var(--dsw-text-secondary, inherit); font: inherit; font-size: 13px;
-  cursor: pointer; text-align: left;
-  box-sizing: border-box; overflow: hidden;
-  align-self: stretch;
-  transition: background .12s, color .12s;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  position: relative !important;
+  text-align: left !important;
+  width: calc(100% - 8px) !important;
+  margin: 2px 4px !important;
+  padding: 6px 10px !important;
+  border: none !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  color: var(--dsw-text-secondary, inherit) !important;
+  font: inherit !important;
+  font-size: 13px !important;
+  cursor: pointer !important;
+  box-shadow: none !important;
+  outline: none !important;
+  text-shadow: none !important;
+  justify-items: inherit !important;
 }
 .dsh-bkm-entry:hover, [data-dsh-bookmark-entry]:hover {
-  background: var(--dsw-hover, rgba(128,128,128,.12));
-  color: var(--dsw-text-primary, inherit);
+  background: var(--dsw-hover, rgba(128,128,128,.12)) !important;
+  color: var(--dsw-text-primary, inherit) !important;
 }
 .dsh-bkm-entry[data-active="true"], [data-dsh-bookmark-entry][data-active="true"] {
-  background: var(--dsw-active, rgba(128,128,128,.18));
-  color: var(--dsw-text-primary, inherit); font-weight: 500;
+  background: var(--dsw-active, rgba(128,128,128,.18)) !important;
+  color: var(--dsw-text-primary, inherit) !important;
+  font-weight: 500 !important;
 }
-.dsh-bkm-entry svg, [data-dsh-bookmark-entry] svg { flex: none; }
+.dsh-bkm-entry svg, [data-dsh-bookmark-entry] svg {
+  flex: none !important;
+  display: block !important;
+}
+.dsh-bkm-entry .dsh-bkm-entry-icon, [data-dsh-bookmark-entry] .dsh-bkm-entry-icon {
+  display: inline-flex !important;
+  align-items: center !important;
+  flex: none !important;
+}
 .dsh-bkm-entry .bkm-sidebar-label, [data-dsh-bookmark-entry] .bkm-sidebar-label {
-  white-space: nowrap; max-width: 200px; overflow: hidden;
-  font-size: 13px; font-weight: 400; line-height: 1;
+  white-space: nowrap !important;
+  max-width: 200px !important;
+  overflow: hidden !important;
+  text-align: left !important;
 }
 
-/* ── Collapsed sidebar (icon-only) ────────────────────────────────────── */
+/* ── Collapsed sidebar ─────────────────────────────────────────────────── */
 [data-sidebar-collapsed] .dsh-bkm-entry,
 [data-sidebar-collapsed] [data-dsh-bookmark-entry],
 [class*="_collapsed"] .dsh-bkm-entry,
 [class*="_collapsed"] [data-dsh-bookmark-entry] {
-  width: 36px; height: 36px; min-width: 36px;
-  margin: 0 0 12px; padding: 0;
-  justify-content: center; gap: 0; text-align: center;
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  margin: 0 0 12px !important;
+  padding: 0 !important;
+  justify-content: center !important;
+  gap: 0 !important;
+  text-align: center !important;
 }
 [data-sidebar-collapsed] .dsh-bkm-entry .bkm-sidebar-label,
 [data-sidebar-collapsed] [data-dsh-bookmark-entry] .bkm-sidebar-label,
 [class*="_collapsed"] .dsh-bkm-entry .bkm-sidebar-label,
-[class*="_collapsed"] [data-dsh-bookmark-entry] .bkm-sidebar-label {
-  display: none;
-}
+[class*="_collapsed"] [data-dsh-bookmark-entry] .bkm-sidebar-label { display: none !important; }
 [data-sidebar-collapsed] .dsh-bkm-entry svg,
 [data-sidebar-collapsed] [data-dsh-bookmark-entry] svg,
 [class*="_collapsed"] .dsh-bkm-entry svg,
-[class*="_collapsed"] [data-dsh-bookmark-entry] svg {
-  width: 16px; height: 16px;
+[class*="_collapsed"] [data-dsh-bookmark-entry] svg { width: 16px !important; height: 16px !important; }
+
+/* ── Official panel icon (inside DSH's panelRow button) ──────────────── */
+.dsh-bkm-pglyph { display: inline-flex !important; align-items: center !important; }
+button[class*="panelRow"]:has(.dsh-bkm-pglyph) {
+  position: relative !important;
+  display: flex !important;
+  justify-content: flex-start !important;
+  align-items: center !important;
+  text-align: left !important;
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  font: inherit !important;
+  color: var(--dsw-text-secondary, inherit) !important;
+}
+button[class*="panelRow"][data-active]:has(.dsh-bkm-pglyph),
+button[class*="panelRow"]:has(.dsh-bkm-pglyph):hover {
+  background: var(--dsw-hover, rgba(128,128,128,.12)) !important;
+  color: var(--dsw-text-primary, inherit) !important;
 }
 
-/* ── Panel visibility (CSS-driven, same as taskboard) ─────────────────── */
+/* ── Panel visibility (CSS-driven) ──────────────────────────────────────── */
 html[data-dsh-bookmark-active] [data-pane="conversation"] > *:not([data-dsh-bookmark-view]),
 html[data-dsh-bookmark-active] [class*="centerCol"] > *:not([data-dsh-bookmark-view]),
 html[data-dsh-bookmark-active] .dshDesktopConversationSurface > *:not([data-dsh-bookmark-view]) {
@@ -81,7 +124,4 @@ html[data-dsh-bookmark-active] .dsh-bkm-view,
 html[data-dsh-bookmark-active] [data-dsh-bookmark-view] {
   display: flex; flex-direction: column; height: 100%; overflow: hidden;
 }
-
-/* ── Panel icon glyph (official slot mode) ────────────────────────────── */
-.dsh-bkm-pglyph { display: inline-flex; align-items: center; }
 `
