@@ -113,6 +113,19 @@ button[class*="panelRow"]:has(.dsh-bkm-pglyph):hover {
   color: var(--dsw-text-primary, inherit) !important;
 }
 
+/* ── Official panel icon: collapsed sidebar ──────────────────────────── */
+[data-sidebar-collapsed] button[class*="panelRow"]:has(.dsh-bkm-pglyph),
+[class*="_collapsed"] button[class*="panelRow"]:has(.dsh-bkm-pglyph) {
+  justify-content: center !important;
+  text-align: center !important;
+  padding: 0 !important;
+}
+[data-sidebar-collapsed] button[class*="panelRow"]:has(.dsh-bkm-pglyph) svg,
+[class*="_collapsed"] button[class*="panelRow"]:has(.dsh-bkm-pglyph) svg {
+  width: 16px !important;
+  height: 16px !important;
+}
+
 /* ── Panel visibility (CSS-driven) ──────────────────────────────────────── */
 html[data-dsh-bookmark-active] [data-pane="conversation"] > *:not([data-dsh-bookmark-view]),
 html[data-dsh-bookmark-active] [class*="centerCol"] > *:not([data-dsh-bookmark-view]),
