@@ -1,34 +1,104 @@
-import { execFile } from 'node:child_process'
+import { execFile, spawn } from 'node:child_process'
 import { promisify } from 'node:util'
 
 const execFileAsync = promisify(execFile)
 
-export function getOpenCommand(targetPath: string): { command: string; args: string[] } {
-  const platform = process.platform
-  if (platform === 'win32') {
-    return { command: 'explorer.exe', args: [targetPath] }
-  }
-  if (platform === 'darwin') {
-    return { command: 'open', args: [targetPath] }
-  }
-  return { command: 'xdg-open', args: [targetPath] }
+export type OpenMethod = 'folder' | 'vscode' | 'idea' | 'cmd'
+
+export interface OpenTarget {
+  command: string
+  args: string[]
+  shell?: boolean
+  hideWindow?: boolean
 }
 
-export async function openInFileManager(targetPath: string): Promise<{ success: boolean; message: string }> {
-  try {
-    const { command, args } = getOpenCommand(targetPath)
-    try {
-      await execFileAsync(command, args, { timeout: 10000 })
-    } catch {
-      // On Windows, explorer.exe often returns a non-zero exit code even on success.
-      // We treat the absence of a thrown "spawn" error as success.
-      if (process.platform !== 'win32') throw new Error('open command failed')
-    }
-    return { success: true, message: `已打开: ${targetPath}` }
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
-    return { success: false, message: `无法打开: ${targetPath}，错误: ${message}` }
+export function openInFileManager(targetPath: string): OpenTarget {
+  const platform = process.platform
+  if (platform === 'win32') {
+    return { command: `explorer.exe "${targetPath}"`, args: [], shell: true, hideWindow: false }
   }
+  if (platform === 'darwin') return { command: 'open', args: [targetPath], hideWindow: false }
+  return { command: 'xdg-open', args: [targetPath], hideWindow: false }
+}
+
+export function openInVSCode(targetPath: string): OpenTarget {
+  return { command: `code "${targetPath}"`, args: [], shell: true, hideWindow: false }
+}
+
+export function openInIDEA(targetPath: string): OpenTarget {
+  const platform = process.platform
+  if (platform === 'win32') {
+    return { command: `idea64.exe "${targetPath}"`, args: [], shell: true, hideWindow: false }
+  }
+  if (platform === 'darwin') {
+    return { command: 'idea', args: [targetPath], hideWindow: false }
+  }
+  return { command: 'idea.sh', args: [targetPath], hideWindow: false }
+}
+
+export function openInCmd(targetPath: string): OpenTarget {
+  const platform = process.platform
+  if (platform === 'win32') {
+    return {
+      command: 'cmd.exe',
+      args: ['/c', 'start', '""', 'cmd.exe', '/k', `cd /d "${targetPath}"`],
+      shell: false,
+      hideWindow: false,
+    }
+  }
+  if (platform === 'darwin') {
+    const script = `cd "${targetPath}"; exec bash`
+    return { command: 'osascript', args: ['-e', `tell application "Terminal" to do script ${JSON.stringify(script)}`], hideWindow: false }
+  }
+  return { command: 'x-terminal-emulator', args: ['-e', `cd "${targetPath}"; exec bash`], hideWindow: false }
+}
+
+function spawnNoWait(target: OpenTarget): void {
+  const { command, args, shell = false, hideWindow = false } = target
+  const options = {
+    detached: true,
+    stdio: 'ignore' as const,
+    windowsHide: hideWindow,
+    ...(shell ? { shell: true } : {}),
+  }
+  let child: ReturnType<typeof spawn>
+  try {
+    child = spawn(command, args, options)
+  } catch {
+    return
+  }
+  child.once('error', () => {})
+  child.unref()
+}
+
+export async function openByMethod(targetPath: string, method: OpenMethod): Promise<{ success: boolean; message: string }> {
+  let target: OpenTarget
+  let label: string
+
+  switch (method) {
+    case 'vscode':
+      target = openInVSCode(targetPath)
+      label = 'VS Code'
+      break
+    case 'idea':
+      target = openInIDEA(targetPath)
+      label = 'IntelliJ IDEA'
+      break
+    case 'cmd':
+      target = openInCmd(targetPath)
+      label = '终端'
+      break
+    case 'folder':
+    default:
+      target = openInFileManager(targetPath)
+      label = '文件管理器'
+      break
+  }
+
+  spawnNoWait(target)
+
+  const msg = `已在 ${label} 中打开: ${targetPath}`
+  return { success: true, message: msg }
 }
 
 export async function selectFolderDialog(): Promise<{ success: boolean; path: string; message: string }> {

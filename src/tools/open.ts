@@ -1,7 +1,7 @@
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import { existsSync } from 'node:fs'
 import { findBookmark, listBookmarks, incrementOpenCount } from '../bookmarks.js'
-import { openInFileManager } from '../platform.js'
+import { openByMethod, type OpenMethod } from '../platform.js'
 
 export const bookmarkOpenTool = defineTool({
   name: 'bookmark-open',
@@ -13,6 +13,11 @@ export const bookmarkOpenTool = defineTool({
       type: 'string',
       required: true,
       description: '书签别名或 ID，用于定位要打开的收藏项。',
+    },
+    method: {
+      type: 'string',
+      enum: ['folder', 'vscode', 'idea', 'cmd'],
+      description: '打开方式。folder=系统文件管理器(默认)、vscode=VS Code、idea=IntelliJ IDEA、cmd=命令行终端。',
     },
   },
 
@@ -47,7 +52,8 @@ export const bookmarkOpenTool = defineTool({
       }
     }
 
-    const result = await openInFileManager(entry.path)
+    const method = (args.method ?? 'folder') as OpenMethod
+    const result = await openByMethod(entry.path, method)
 
     if (result.success) {
       incrementOpenCount(args.target)

@@ -1,4 +1,4 @@
-﻿import type { IncomingMessage, ServerResponse } from 'node:http'
+import type { IncomingMessage, ServerResponse } from 'node:http'
 import { readJsonBody, sendJson } from '../server-utils.js'
 import {
   createProject,
@@ -10,7 +10,6 @@ import {
   type WorkspaceInfo,
 } from '../project-templates.js'
 import { selectFolderDialog } from '../platform.js'
-import { getDshCtx } from '../server.js'
 
 function wsToDto(ws: WorkspaceInfo) {
   return {
@@ -31,9 +30,9 @@ export async function handleCreateProject(req: IncomingMessage, res: ServerRespo
   if (result.success) {
     try {
       registerDshWorkspace(result.projectPath, body.projectName)
-      result.details?.push('鉁?宸叉敞鍐屽埌 DSH 渚ц竟鏍忓伐浣滃尯')
+      result.details?.push('✅ 已注册到 DSH 侧边栏工作区')
     } catch (err) {
-      result.details?.push('鈿狅笍 DSH 渚ц竟鏍忔敞鍐屽け璐? ' + (err as Error).message)
+      result.details?.push('⚠️ DSH 侧边栏注册失败: ' + (err as Error).message)
     }
   }
   sendJson(res, 200, result)

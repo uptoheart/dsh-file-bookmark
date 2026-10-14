@@ -254,6 +254,40 @@
     margin-top: 1px;
   }
   .item .acts { display: flex; gap: 4px; margin-left: 10px; flex-shrink: 0; }
+  .open-wrap { position: relative; display: inline-block; }
+  .open-menu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 3px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    box-shadow: 0 4px 14px rgba(0,0,0,.12);
+    z-index: 1000;
+    min-width: 140px;
+    padding: 4px;
+  }
+  .open-menu.show { display: block; }
+  .open-menu button {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    width: 100%;
+    padding: 6px 10px;
+    border: none;
+    background: transparent;
+    color: var(--text);
+    font-size: 12px;
+    font-family: inherit;
+    text-align: left;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background .12s;
+  }
+  .open-menu button:hover { background: var(--dsw-hover, rgba(128,128,128,.15)); }
+  .open-menu .emoji { font-size: 14px; line-height: 1; }
   .badge {
     display: inline-block;
     padding: 1px 6px;
@@ -517,21 +551,106 @@
     setTimeout(() => el.remove(), 2800)
   }
 
+  const OPEN_OPTIONS = [
+    { method: 'folder', emoji: '📁', label: '文件夹' },
+    { method: 'vscode', emoji: '💻', label: 'VS Code' },
+    { method: 'idea',   emoji: '🟢', label: 'IntelliJ IDEA' },
+    { method: 'cmd',    emoji: '⚡', label: '命令行 (CMD)' },
+  ]
+
+  function openMenuHtml(targetKey) {
+    return `<div class="open-menu" data-openmenu="${escapeHtml(targetKey)}">
+      ${OPEN_OPTIONS.map(o => `<button data-openmethod="${o.method}"><span class="emoji">${o.emoji}</span><span>${o.label}</span></button>`).join('')}
+    </div>`
+  }
+
   function bookmarkItemHtml(b) {
     const name = b.path.split(/[/\\]/).pop() || b.path
     const alias = b.alias ? escapeHtml(b.alias) : '<span class="no-alias">无别名</span>'
     const count = b.openCount ?? 0
-    return `<div class="item" data-action="open" data-alias="${escapeHtml(b.alias)}" title="点击打开: ${escapeHtml(b.path)}">
+    const openKey = 'alias:' + (b.alias || '')
+    return `<div class="item" title="${escapeHtml(b.path)}">
     <div class="info">
       <div class="name"><span class="badge badge-${b.type}">${b.type}</span> ${escapeHtml(name)}</div>
       <div class="alias">🏷 ${alias}　<span class="open-count">🔥${count}</span></div>
       <div class="path">${escapeHtml(b.path)}</div>
     </div>
     <div class="acts">
-      <button class="btn btn-s btn-primary" data-action="open" data-alias="${escapeHtml(b.alias)}">打开</button>
+      <div class="open-wrap">
+        <button class="btn btn-s btn-primary" data-openbtn="${escapeHtml(openKey)}">打开 ▾</button>
+        ${openMenuHtml(openKey)}
+      </div>
       <button class="btn btn-s btn-danger" data-action="remove" data-alias="${escapeHtml(b.alias)}" aria-label="删除书签">✕</button>
     </div>
   </div>`
+  }
+
+  function workspaceCardHtml(ws) {
+    const items = ws.items || []
+    const dirs = items.filter(i => i.isDirectory).slice(0, 6)
+    const files = items.filter(i => !i.isDirectory).slice(0, 4)
+    const dirIcons = ['📁', '📂', '🗂', '📦', '🗃', '📑']
+    const fileIcons = ['📄', '📝', '📋', '📃']
+    const gridHtml = dirs.map((d, idx) => {
+      const icon = dirIcons[idx % dirIcons.length]
+      return `<div class="ws-cell" title="${escapeHtml(d.name)}">
+        <span class="ws-icon">${icon}</span>
+        <span class="ws-cell-name">${escapeHtml(d.name)}</span>
+      </div>`
+    }).join('') + files.map((f, idx) => {
+      const icon = fileIcons[idx % fileIcons.length]
+      return `<div class="ws-cell" title="${escapeHtml(f.name)}">
+        <span class="ws-icon">${icon}</span>
+        <span class="ws-cell-name">${escapeHtml(f.name)}</span>
+      </div>`
+    }).join('')
+    const moreCount = items.length - dirs.length - files.length
+    const moreHtml = moreCount > 0 ? `<div class="ws-cell ws-more">+${moreCount} 更多</div>` : ''
+    const openKey = 'path:' + escapeHtml(ws.path)
+    return `<div class="ws-card">
+      <div class="ws-header">
+        <div class="ws-title">🏠 ${escapeHtml(ws.name)}</div>
+        <div class="ws-acts">
+          <div class="open-wrap">
+            <button class="btn btn-s btn-primary" data-openbtn="${escapeHtml(openKey)}">打开 ▾</button>
+            ${openMenuHtml(openKey)}
+          </div>
+        </div>
+      </div>
+      <div class="ws-path">${escapeHtml(ws.path)}</div>
+      <div class="ws-grid">${gridHtml}${moreHtml}</div>
+    </div>`
+  }
+
+  function resolveOpenTarget(openKey) {
+    if (!openKey) return null
+    if (openKey.startsWith('alias:')) {
+      const alias = openKey.slice(6)
+      const target = apiGetSafe('/bookmarks')
+      return { alias }
+    }
+    if (openKey.startsWith('path:')) {
+      return { path: openKey.slice(5) }
+    }
+    return null
+  }
+
+  async function apiGetSafe(path) {
+    try { return await apiGet(path) } catch { return [] }
+  }
+
+  async function openBookmark(openKey, method) {
+    const target = resolveOpenTarget(openKey)
+    if (!target) { toast('无效的目标', false); return }
+    try {
+      let data
+      if (target.path) {
+        data = await apiPost('/open', { path: target.path, method })
+      } else {
+        data = await apiPost('/open', { target: target.alias, method })
+      }
+      toast(data.message, data.success)
+    } catch (e) { toast('打开失败: ' + e.message, false) }
   }
 
   function renderBookmarkList(bookmarks) {
@@ -624,13 +743,6 @@
     }
   })
 
-  async function openBookmark(alias) {
-    try {
-      const data = await apiPost('/open', { target: alias })
-      toast(data.message, data.success)
-    } catch (e) { toast('打开失败: ' + e.message, false) }
-  }
-
   async function removeBookmark(alias) {
     try {
       const data = await apiDelete('/bookmarks/' + encodeURIComponent(alias))
@@ -639,18 +751,46 @@
     } catch (e) { toast('删除失败: ' + e.message, false) }
   }
 
-  document.getElementById('bookmark-list').addEventListener('click', onListClick)
-
-  function onListClick(e) {
-    const el = e.target.closest('[data-action]')
-    if (!el) return
-    const action = el.dataset.action
-    const alias = el.dataset.alias
-    if (!alias) return
-    e.stopPropagation()
-    if (action === 'open') openBookmark(alias)
-    else if (action === 'remove') removeBookmark(alias)
+  function closeAllOpenMenus() {
+    document.querySelectorAll('.open-menu.show').forEach(m => m.classList.remove('show'))
   }
+
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-openbtn]')
+    if (btn) {
+      const key = btn.dataset.openbtn
+      const menu = btn.parentElement.querySelector('.open-menu')
+      const isOpen = menu?.classList.contains('show')
+      closeAllOpenMenus()
+      if (menu && !isOpen) menu.classList.add('show')
+      e.stopPropagation()
+      return
+    }
+
+    const menuItem = e.target.closest('[data-openmethod]')
+    if (menuItem) {
+      const menu = menuItem.closest('.open-menu')
+      const openWrap = menu?.parentElement
+      const key = openWrap?.querySelector('[data-openbtn]')?.dataset.openbtn
+      const method = menuItem.dataset.openmethod
+      if (key && method) {
+        openBookmark(key, method)
+      }
+      closeAllOpenMenus()
+      e.stopPropagation()
+      return
+    }
+
+    const removeBtn = e.target.closest('[data-action="remove"]')
+    if (removeBtn) {
+      const alias = removeBtn.dataset.alias
+      if (alias) removeBookmark(alias)
+      e.stopPropagation()
+      return
+    }
+
+    closeAllOpenMenus()
+  })
 
   document.getElementById('select-folder-btn').addEventListener('click', () => selectFolder('project-base'))
   document.getElementById('select-source-btn').addEventListener('click', () => selectFolder('source-path'))
@@ -698,47 +838,6 @@
     }
     container.innerHTML = workspaces.map(ws => workspaceCardHtml(ws)).join('')
   }
-
-  function workspaceCardHtml(ws) {
-    const items = ws.items || []
-    const dirs = items.filter(i => i.isDirectory).slice(0, 6)
-    const files = items.filter(i => !i.isDirectory).slice(0, 4)
-    const dirIcons = ['📁', '📂', '🗂', '📦', '🗃', '📑']
-    const fileIcons = ['📄', '📝', '📋', '📃']
-    const gridHtml = dirs.map((d, idx) => {
-      const icon = dirIcons[idx % dirIcons.length]
-      return `<div class="ws-cell" title="${escapeHtml(d.name)}">
-        <span class="ws-icon">${icon}</span>
-        <span class="ws-cell-name">${escapeHtml(d.name)}</span>
-      </div>`
-    }).join('') + files.map((f, idx) => {
-      const icon = fileIcons[idx % fileIcons.length]
-      return `<div class="ws-cell" title="${escapeHtml(f.name)}">
-        <span class="ws-icon">${icon}</span>
-        <span class="ws-cell-name">${escapeHtml(f.name)}</span>
-      </div>`
-    }).join('')
-    const moreCount = items.length - dirs.length - files.length
-    const moreHtml = moreCount > 0 ? `<div class="ws-cell ws-more">+${moreCount} 更多</div>` : ''
-    return `<div class="ws-card" data-wspath="${escapeHtml(ws.path)}">
-      <div class="ws-header">
-        <div class="ws-title">🏠 ${escapeHtml(ws.name)}</div>
-        <div class="ws-acts">
-          <button class="btn btn-s btn-primary" data-ws-open="${escapeHtml(ws.path)}">打开</button>
-        </div>
-      </div>
-      <div class="ws-path">${escapeHtml(ws.path)}</div>
-      <div class="ws-grid">${gridHtml}${moreHtml}</div>
-    </div>`
-  }
-
-  document.getElementById('workspace-list').addEventListener('click', (e) => {
-    const openBtn = e.target.closest('[data-ws-open]')
-    if (openBtn) {
-      const path = openBtn.dataset.wsOpen
-      apiPost('/open', { target: path }).then(data => toast(data.message, data.success)).catch(err => toast('打开失败: ' + err.message, false))
-    }
-  })
 
   async function createProject() {
     const basePath = document.getElementById('project-base').value.trim()

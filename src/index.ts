@@ -1,4 +1,4 @@
-﻿import type { Context } from '@deepseek-ai/cordis'
+import type { Context } from '@deepseek-ai/cordis'
 import { bookmarkAddTool } from './tools/add.js'
 import { bookmarkOpenTool } from './tools/open.js'
 import { projectCreateTool } from './tools/create.js'
@@ -41,7 +41,7 @@ export async function apply(ctx: Context) {
     ctx.tools.register(tool)
   }
 
-  const wr = (ctx as any).workspaceRegistry
+  const wr = (ctx as unknown as Record<string, unknown>).workspaceRegistry
   if (wr) {
     const proto = Object.getPrototypeOf(wr)
     const protoMethods = Object.getOwnPropertyNames(proto).filter(m => m !== 'constructor')
@@ -49,7 +49,7 @@ export async function apply(ctx: Context) {
     debugLog('workspaceRegistry proto methods:', protoMethods)
     debugLog('workspaceRegistry own keys:', ownKeys)
     try {
-      const list = wr.list()
+      const list = (wr as any).list() as unknown[]
       debugLog(`current workspaces (${list.length}):`)
       list.forEach((w: any, i: number) => {
         debugLog(`  [${i}] id=${w.id} title=${w.title || '(no title)'} path=${w.path || '(no path)'}`)
@@ -61,10 +61,10 @@ export async function apply(ctx: Context) {
     debugLog('WARN workspaceRegistry not available on ctx')
   }
 
-  const ctxKeys = Object.keys(ctx as any).filter(k => !k.startsWith('_')).sort()
+  const ctxKeys = Object.keys(ctx as unknown as Record<string, unknown>).filter(k => !k.startsWith('_')).sort()
   debugLog('all ctx keys:', ctxKeys)
 
-  const events = (ctx as any).events
+  const events = (ctx as unknown as Record<string, unknown>).events
   if (events) {
     const evProto = Object.getPrototypeOf(events)
     const evMethods = Object.getOwnPropertyNames(evProto).filter(m => m !== 'constructor')
